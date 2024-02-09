@@ -1,4 +1,4 @@
-import { Recipe, endProducts } from "./App";
+import { ProductionUnit, Recipe, endProducts } from "./App";
 
 export const calculateProductionSetup = (
   product: string,
@@ -9,18 +9,17 @@ export const calculateProductionSetup = (
   if (endProducts.includes(product)) {
     return [{ product, rate }];
   }
-  const alternateRecipeSequence: {
-    product: string;
-    rate: number;
-    numberOfMachines?: number;
-    variant?: number;
-  }[] = [];
+  const alternateRecipeSequence: ProductionUnit[] = [];
   const viableRecipes = recipes.filter((x) => x.productName === product);
-  const variant = recipeOfEachProd.get(product) ?? 0;
-  const recipe = viableRecipes[variant];
+  const variant = recipeOfEachProd.get(product);
+  const recipe = viableRecipes[variant!];
+  if(!recipe){
+    console.log('product',product)
+  }
   const baseRate = recipe.productAmount / (recipe.time / 60);
   const numberOfMachines = rate / baseRate;
-  const prodVar = { product, variant, rate, numberOfMachines };
+  const recipeName = recipe.className;
+  const prodVar = { product, variant, rate, numberOfMachines, recipeName };
   for (const ingredient of recipe.ingredients) {
     const recipeSequence = calculateProductionSetup(
       ingredient.name,
