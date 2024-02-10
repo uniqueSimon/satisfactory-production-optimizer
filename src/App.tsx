@@ -1,8 +1,9 @@
-import { Table } from "antd";
+import { Col, Divider, Row, Table, Tooltip } from "antd";
 import { getRecipesFromConfig } from "./getRecipesFromConfig";
 import { generateCombinations } from "./generateCombinations";
 import { calculateProductionSetup } from "./calculateProductionSetup";
 import { findAllRelatedRecipes } from "./findAllRelatedRecipes";
+import { getRemainingRecipes } from "./deleteNotNeededRecipes";
 
 export interface Recipe {
   className: string;
@@ -19,7 +20,7 @@ export interface ProductionUnit {
   recipeName?: string;
 }
 const product = "ModularFrameHeavy";
-const outputRate = 2;
+const outputRate = 2.813;
 
 export const endProducts = [
   "OreIron",
@@ -36,7 +37,7 @@ export const endProducts = [
   "RawQuartz",
   "OreBauxite",
 ];
-const notWantedIngredients = [
+const notWantedEndProducts = [
   "OreGold",
   "Water",
   "OreGold",
@@ -64,8 +65,10 @@ const sumResourceRates = (inputList: ProductionUnit[]) => {
 
 export const App = () => {
   const allRecipes = getRecipesFromConfig();
-  const recipes = findAllRelatedRecipes(product, allRecipes);
-
+  const relatedRecipes = findAllRelatedRecipes(product, allRecipes);
+  console.log("relatedRecipes.length", relatedRecipes.length);
+  const recipes = getRemainingRecipes(relatedRecipes, notWantedEndProducts);
+  console.log("recipes.length", recipes.length);
   const productVariations = new Map<string, number>();
   for (const recipe of recipes) {
     const count = productVariations.get(recipe.productName);
@@ -97,10 +100,7 @@ export const App = () => {
       recipes
     );
     const identifier = JSON.stringify(returnValue);
-    if (
-      !dataSource.some((x) => x.identifier === identifier) &&
-      !returnValue.some((x) => notWantedIngredients.includes(x.product))
-    ) {
+    if (!dataSource.some((x) => x.identifier === identifier)) {
       dataSource.push({
         key: combination.join(),
         combination: recipeOfEachProd,
@@ -154,7 +154,6 @@ export const App = () => {
   return (
     <>
       <Table
-        pagination={false}
         columns={[
           {
             dataIndex: "resources",
@@ -162,8 +161,45 @@ export const App = () => {
             render: renderFunction,
           },
           {
-            dataIndex: "productionUnits",
-            title: "Production Units",
+            dataIndex: "usedRecipes",
+            title: "Used Recipes",
+            render: (_, x) => {
+              const recipeWithIngredients: {
+                recipeName: string;
+                ingredients: string;
+              }[] = [];
+              for (const productionUnit of x.productionUnits) {
+                if (
+                  productionUnit.recipeName &&
+                  !recipeWithIngredients.some(
+                    (y) => y.recipeName === productionUnit.recipeName
+                  )
+                ) {
+                  const ingredients = recipes
+                    .find((y) => y.className === productionUnit.recipeName)!
+                    .ingredients.map((z) => z.name)
+                    .join(", ");
+                  recipeWithIngredients.push({
+                    recipeName: productionUnit.recipeName,
+                    ingredients,
+                  });
+                }
+              }
+              return (
+                <Row gutter={6}>
+                  {recipeWithIngredients.map((x) => (
+                    <Col key={x.recipeName}>
+                      <Tooltip title={x.ingredients}>{x.recipeName}</Tooltip>
+                      <Divider type="vertical" />
+                    </Col>
+                  ))}
+                </Row>
+              );
+            },
+          },
+          {
+            dataIndex: "numberOfMachines",
+            title: "Number Of Machines",
             render: (_, x) =>
               Math.round(
                 x.productionUnits.reduce(
@@ -172,13 +208,13 @@ export const App = () => {
                 ) * 100
               ) / 100,
           },
-          {
+          /* {
             dataIndex: "productionUnits",
             title: "Production Units",
             render: renderFunction,
-          },
+          }, */
         ]}
-        dataSource={sortedDataSource.slice(0, 10)}
+        dataSource={sortedDataSource.slice(0, 100)}
       />
       <pre>{JSON.stringify(recipes, null, 2)}</pre>
     </>
