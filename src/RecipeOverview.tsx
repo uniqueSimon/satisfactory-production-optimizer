@@ -5,32 +5,42 @@ export const RecipeOverview = (props: { recipeLookup: RecipeLookup }) => {
   const dataSource: {
     key: string;
     product: string;
-    recipeName: string;
-    productAmount: number;
-    time: number;
-    ingredients: { name: string; amount: number }[];
+    children: {
+      key: string;
+      recipeName: string;
+      productAmount: number;
+      time: number;
+      children: { key: string; name: string; amount: number }[];
+    }[];
   }[] = [];
   props.recipeLookup.forEach((value, key) => {
-    for (const recipe of value) {
-      dataSource.push({
-        key: recipe.recipeName,
-        product: key,
+    dataSource.push({
+      key: key,
+      product: key,
+      children: value.map((recipe) => ({
+        key: `${key}${recipe.recipeName}`,
         recipeName: recipe.recipeName,
         productAmount: recipe.productAmount,
         time: recipe.time,
-        ingredients: recipe.ingredients,
-      });
-    }
+        children: recipe.ingredients.map((x) => ({
+          key: `${recipe.recipeName}${x.name}`,
+          ...x,
+        })),
+      })),
+    });
   });
   return (
     <Table
+      size="small"
+      expandable={{ defaultExpandAllRows: true }}
       columns={[
-        { dataIndex: "product" },
-        { dataIndex: "recipeName" },
-        { dataIndex: "productAmount" },
-        { dataIndex: "time" },
+        { dataIndex: "product", title: "Product" },
+        { dataIndex: "recipeName", title: "Recipe Name" },
+        { dataIndex: "productAmount", title: "Product Amount" },
+        { dataIndex: "time", title: "Time" },
         {
           dataIndex: "ingredients",
+          title: "Ingredients",
           children: [{ dataIndex: "name" }, { dataIndex: "amount" }],
         },
       ]}

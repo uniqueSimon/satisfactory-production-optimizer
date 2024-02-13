@@ -1,24 +1,15 @@
-import { ProductionUnit, endProducts } from "./App";
+import { ProductionUnit, endProducts, recipeLookup } from "./App";
 
 export const calculateProductionSetup = (
   product: string,
   rate: number,
-  recipeOfEachProd: Map<string, number>,
-  recipes: Map<
-    string,
-    {
-      recipeName: string;
-      productAmount: number;
-      time: number;
-      ingredients: { name: string; amount: number }[];
-    }[]
-  >
+  recipeOfEachProd: Map<string, number>
 ) => {
   if (endProducts.includes(product)) {
     return [{ product, rate }];
   }
   const alternateRecipeSequence: ProductionUnit[] = [];
-  const viableRecipes = recipes.get(product)!;
+  const viableRecipes = recipeLookup.get(product)!;
   const variant = recipeOfEachProd.get(product);
   const recipe = viableRecipes[variant!];
   const baseRate = recipe.productAmount / (recipe.time / 60);
@@ -29,8 +20,7 @@ export const calculateProductionSetup = (
     const recipeSequence = calculateProductionSetup(
       ingredient.name,
       (rate * ingredient.amount) / recipe.productAmount,
-      recipeOfEachProd,
-      recipes
+      recipeOfEachProd
     );
     alternateRecipeSequence.push(...recipeSequence);
   }
