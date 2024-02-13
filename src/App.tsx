@@ -4,6 +4,8 @@ import { generateCombinations } from "./generateCombinations";
 import { calculateProductionSetup } from "./calculateProductionSetup";
 import { findAllRelatedRecipes } from "./findAllRelatedRecipes";
 import { getRemainingRecipes } from "./deleteNotNeededRecipes";
+import { createRecipeLookup } from "./createRecipeLookup";
+import { RecipeOverview } from "./RecipeOverview";
 
 export interface Recipe {
   className: string;
@@ -19,6 +21,18 @@ export interface ProductionUnit {
   variant?: number;
   recipeName?: string;
 }
+export type RecipeLookup = Map<
+  string,
+  {
+    recipeName: string;
+    productAmount: number;
+    time: number;
+    ingredients: {
+      name: string;
+      amount: number;
+    }[];
+  }[]
+>;
 const product = "ModularFrameHeavy";
 const outputRate = 2.813;
 
@@ -88,6 +102,9 @@ export const App = () => {
     resources: ProductionUnit[];
     identifier: string;
   }[] = [];
+
+  const recipeLookup = createRecipeLookup(recipes);
+
   for (const combination of combinations) {
     const recipeOfEachProd: Map<string, number> = new Map();
     for (let i = 0; i < allRelatedProducts.length; i++) {
@@ -97,7 +114,7 @@ export const App = () => {
       product,
       outputRate,
       recipeOfEachProd,
-      recipes
+      recipeLookup
     );
     const identifier = JSON.stringify(returnValue);
     if (!dataSource.some((x) => x.identifier === identifier)) {
@@ -161,6 +178,20 @@ export const App = () => {
             render: renderFunction,
           },
           {
+            dataIndex: "numberOfResources",
+            title: "Number of resources",
+            sorter: (a, b) => a.resources.length - b.resources.length,
+            render: (_, x) => x.resources.length,
+          },
+          {
+            dataIndex: "totalRate",
+            title: "Total rate",
+            render: (_, x) => x.resources.reduce((acc, x) => acc + x.rate, 0),
+            sorter: (a, b) =>
+              a.resources.reduce((acc, x) => acc + x.rate, 0) -
+              b.resources.reduce((acc, x) => acc + x.rate, 0),
+          },
+          {
             dataIndex: "usedRecipes",
             title: "Used Recipes",
             render: (_, x) => {
@@ -216,6 +247,7 @@ export const App = () => {
         ]}
         dataSource={sortedDataSource.slice(0, 100)}
       />
+      <RecipeOverview recipeLookup={recipeLookup} />
       <pre>{JSON.stringify(recipes, null, 2)}</pre>
     </>
   );
