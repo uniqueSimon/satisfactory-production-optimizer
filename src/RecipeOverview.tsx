@@ -1,7 +1,9 @@
 import { Table } from "antd";
-import { RecipeLookup } from "./App";
+import { LookedUpRecipe } from "./App";
 
-export const RecipeOverview = (props: { recipeLookup: RecipeLookup }) => {
+export const RecipeOverview = (props: {
+  recipeLookup: Map<string, LookedUpRecipe[]>;
+}) => {
   const dataSource: {
     key: string;
     product: string;

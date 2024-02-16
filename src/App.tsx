@@ -6,7 +6,7 @@ import { findAllRelatedRecipes } from "./findAllRelatedRecipes";
 import { getRemainingRecipes } from "./deleteNotNeededRecipes";
 import { createRecipeLookup } from "./createRecipeLookup";
 import { RecipeOverview } from "./RecipeOverview";
-import { calculateIngredientsWithRates } from "./calculateIngredientsWithRates";
+import { calculationBottomUp } from "./calculationBottomUp";
 
 export interface Recipe {
   className: string;
@@ -22,18 +22,16 @@ export interface ProductionUnit {
   variant?: number;
   recipeName?: string;
 }
-export type RecipeLookup = Map<
-  string,
-  {
-    recipeName: string;
-    productAmount: number;
-    time: number;
-    ingredients: {
-      name: string;
-      amount: number;
-    }[];
-  }[]
->;
+export type RecipeLookup = Map<string, LookedUpRecipe[]>;
+export interface LookedUpRecipe {
+  recipeName: string;
+  productAmount: number;
+  time: number;
+  ingredients: {
+    name: string;
+    amount: number;
+  }[];
+}
 const product = "IronPlateReinforced";
 const outputRate = 1;
 
@@ -84,6 +82,8 @@ console.log("relatedRecipes.length", relatedRecipes.length);
 const recipes = getRemainingRecipes(relatedRecipes, notWantedEndProducts);
 console.log("recipes.length", recipes.length);
 export const recipeLookup = createRecipeLookup(recipes);
+const productResults = calculationBottomUp(recipes);
+console.log("productResults", productResults.get(product));
 const allRelatedProducts = Array.from(recipeLookup.keys());
 console.log("allRelatedProducts", allRelatedProducts);
 const numberOfAlternateRecipes = Array.from(recipeLookup.values()).map(
@@ -162,19 +162,11 @@ const sortedDataSource = dataSource.sort((a, b) => {
   return numberOfResources === 0 ? rateA - rateB : numberOfResources;
 });
 
-const ingredientsWithRates = calculateIngredientsWithRates(product, 1);
+/* const ingredientsWithRates = calculateIngredientsWithRates(product, 1);
 console.log("ingredientsWithRates", ingredientsWithRates);
-const accu: string[] = [];
-let i = 0;
-for (const ingredientVariant of ingredientsWithRates) {
-  const index = accu.indexOf(JSON.stringify(ingredientVariant));
-  if (index !== -1) {
-    console.log("ingredientVariant", i, index, ingredientVariant);
-  }
-  accu.push(JSON.stringify(ingredientVariant));
-  i++;
-}
 
+const withoutRecursion = calculateIngredientsWithoutRecursion(product, 1);
+console.log("withoutRecursion", withoutRecursion); */
 export const App = () => {
   return (
     <>
