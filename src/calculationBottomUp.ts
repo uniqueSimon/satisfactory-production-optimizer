@@ -1,7 +1,8 @@
-import { LookedUpRecipe, Recipe, recipeLookup } from "./App";
+import { LookedUpRecipe, Recipe } from "./App";
 import { generateCombinations } from "./generateCombinations";
 
-interface RecipeVariant {
+export interface RecipeVariant {
+  resourceTypes: Set<string>;
   resources: Map<string, number>;
   details: Details[];
 }
@@ -11,12 +12,16 @@ interface Details {
   rate: number;
 }
 
-export const calculationBottomUp = (recipes: Recipe[]) => {
+export const calculationBottomUp = (
+  recipes: Recipe[],
+  recipeLookup: Map<string, LookedUpRecipe[]>
+) => {
   const productResults = new Map<string, RecipeVariant[]>();
 
   for (const resource of ["OreIron", "OreCopper", "Coal"]) {
     productResults.set(resource, [
       {
+        resourceTypes: new Set([resource]),
         resources: new Map([[resource, 1]]),
         details: [{ product: resource, rate: 1, recipeNames: [] }],
       },
@@ -30,25 +35,47 @@ export const calculationBottomUp = (recipes: Recipe[]) => {
         x.ingredients.some((y) => !productResults.has(y.name))
       );
       if (allIngredientsAreKnown) {
-        
-        const result: RecipeVariant[] = [];
+        const recipeVariants: RecipeVariant[] = [];
         for (const recipe of viableRecipes) {
+          /* 
+          const concatenatedRecipes = recipe.ingredients.map(
+            (x) => productResults.get(x.name)!
+          );
+          const totalCombinations = concatenatedRecipes
+            .map((x) => x.length)
+            .reduce((acc, val) => acc * val, 1);
+
+          for (let i = 0; i < totalCombinations; i++) {
+            let j = i;
+            const combination = concatenatedRecipes.map((x) => {
+              const recipeVariant = x[j % x.length];
+              j = Math.floor(j / x.length);
+              return recipeVariant;
+            });
+          }
+          const allVariantsOfIngredients = new Map<number, RecipeVariant[]>();
+          for (const ingredient of recipe.ingredients) {
+            const normalized = productResults.get(ingredient.name)!;
+            for (const ingredientVariant of normalized) {
+              allVariantsOfIngredients.set(ingredientVariant);
+            }
+          }
+ */
           const ingredients = getResultsFromIngredients(recipe, productResults);
           const combinations = generateCombinations(
             ingredients.map((x) => x.length)
           );
-          const allRecipeVariants: RecipeVariant[] = [];
           for (const combination of combinations) {
             const recipeVariant = calculateRecipeVariant(
               ingredients,
               combination,
               recipe
             );
-            allRecipeVariants.push(recipeVariant);
+
+            addNewVariantToArray(recipeVariant, recipeVariants);
           }
-          result.push(...allRecipeVariants);
         }
-        productResults.set(product, result);
+        productResults.set(product, recipeVariants);
         allProducts.delete(product);
       }
     }
@@ -73,7 +100,7 @@ const getResultsFromIngredients = (
         ...z,
         rate: z.rate * ingredienteRate,
       }));
-      return { resources, details };
+      return { resourceTypes: y.resourceTypes, resources, details };
     });
     ret.push(withRates);
   }
@@ -87,6 +114,7 @@ const calculateRecipeVariant = (
 ): RecipeVariant => {
   const resources = new Map<string, number>();
   const details: Details[] = [];
+  const resourceTypes = new Set<string>();
   for (const ingredientIndex in combination) {
     const variant = combination[ingredientIndex];
     const ingredientVariant = ingredients[ingredientIndex][variant];
@@ -101,6 +129,48 @@ const calculateRecipeVariant = (
       const oldRate = resources.get(resource);
       resources.set(resource, (oldRate ?? 0) + rate);
     });
+    ingredientVariant.resourceTypes.forEach((x) => resourceTypes.add(x));
   }
-  return { resources, details };
+  return { resources, details, resourceTypes };
 };
+
+const addNewVariantToArray = (
+  recipeVariant: RecipeVariant,
+  recipeVariants: RecipeVariant[]
+) => {
+  let shouldPush = true;
+  let replaceIndex: number | null = null;
+  let i = 0;
+  for (const oldRecipeVariant of recipeVariants) {
+    if (
+      setsAreEqual(recipeVariant.resourceTypes, oldRecipeVariant.resourceTypes)
+    ) {
+      let partlyMoreEfficient = false;
+      let moreEfficient = true;
+      for (const resource of recipeVariant.resourceTypes) {
+        const oldRate = oldRecipeVariant.resources.get(resource)!;
+        const newRate = recipeVariant.resources.get(resource)!;
+        if (newRate < oldRate) {
+          partlyMoreEfficient = true;
+        } else if (oldRate < newRate) {
+          moreEfficient = false;
+        }
+      }
+      if (moreEfficient) {
+        replaceIndex = i;
+      }
+      if (!partlyMoreEfficient) {
+        shouldPush = false;
+      }
+    }
+    i++;
+  }
+  if (replaceIndex) {
+    recipeVariants[replaceIndex] = recipeVariant;
+  } else if (shouldPush) {
+    recipeVariants.push(recipeVariant);
+  }
+};
+
+const setsAreEqual = (a: Set<string>, b: Set<string>) =>
+  a.size === b.size && [...a].every((value) => b.has(value));

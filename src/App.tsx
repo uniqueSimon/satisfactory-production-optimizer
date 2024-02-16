@@ -7,6 +7,8 @@ import { getRemainingRecipes } from "./deleteNotNeededRecipes";
 import { createRecipeLookup } from "./createRecipeLookup";
 import { RecipeOverview } from "./RecipeOverview";
 import { calculationBottomUp } from "./calculationBottomUp";
+import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
+import { createIngredientFinder } from "./createIngredientFinder";
 
 export interface Recipe {
   className: string;
@@ -32,7 +34,7 @@ export interface LookedUpRecipe {
     amount: number;
   }[];
 }
-const product = "IronPlateReinforced";
+const product = "ModularFrame";
 const outputRate = 1;
 
 export const endProducts = [
@@ -76,14 +78,17 @@ const sumResourceRates = (inputList: ProductionUnit[]) => {
   return ret;
 };
 
+console.log("start");
 const allRecipes = getRecipesFromConfig();
 const relatedRecipes = findAllRelatedRecipes(product, allRecipes);
 console.log("relatedRecipes.length", relatedRecipes.length);
 const recipes = getRemainingRecipes(relatedRecipes, notWantedEndProducts);
 console.log("recipes.length", recipes.length);
 export const recipeLookup = createRecipeLookup(recipes);
-const productResults = calculationBottomUp(recipes);
-console.log("productResults", productResults.get(product));
+const ingredientFinder = createIngredientFinder(recipes);
+const productResults = calculationBottomUp(recipes, recipeLookup);
+const recipeVariants = productResults.get(product)!;
+console.log("productResults", recipeVariants);
 const allRelatedProducts = Array.from(recipeLookup.keys());
 console.log("allRelatedProducts", allRelatedProducts);
 const numberOfAlternateRecipes = Array.from(recipeLookup.values()).map(
@@ -246,6 +251,10 @@ export const App = () => {
           }, */
         ]}
         dataSource={sortedDataSource.slice(0, 100)}
+      />
+      <BestRecipesOfProducts
+        recipeVariants={recipeVariants}
+        ingredientFinder={ingredientFinder}
       />
       <RecipeOverview recipeLookup={recipeLookup} />
       <pre>{JSON.stringify(recipes, null, 2)}</pre>
