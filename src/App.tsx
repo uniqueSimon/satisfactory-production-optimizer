@@ -1,263 +1,88 @@
-import { Col, Divider, Row, Table, Tooltip } from "antd";
 import { getRecipesFromConfig } from "./getRecipesFromConfig";
-import { generateCombinations } from "./generateCombinations";
-import { calculateProductionSetup } from "./calculateProductionSetup";
-import { findAllRelatedRecipes } from "./findAllRelatedRecipes";
-import { getRemainingRecipes } from "./deleteNotNeededRecipes";
 import { createRecipeLookup } from "./createRecipeLookup";
 import { RecipeOverview } from "./RecipeOverview";
 import { calculationBottomUp } from "./calculationBottomUp";
 import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
 import { createIngredientFinder } from "./createIngredientFinder";
+import relevantProducts from "./relevantProducts.json";
+import { Form, Select } from "antd";
+import { useEffect, useState } from "react";
+import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
 
 export interface Recipe {
-  className: string;
+  recipeName: string;
   productName: string;
   productAmount: number;
   ingredients: { name: string; amount: number }[];
   time: number;
 }
-export interface ProductionUnit {
-  product: string;
-  rate: number;
-  numberOfMachines?: number;
-  variant?: number;
-  recipeName?: string;
-}
-export type RecipeLookup = Map<string, LookedUpRecipe[]>;
-export interface LookedUpRecipe {
-  recipeName: string;
-  productAmount: number;
-  time: number;
-  ingredients: {
-    name: string;
-    amount: number;
-  }[];
-}
-const product = "ModularFrame";
-const outputRate = 1;
 
-export const endProducts = [
-  "OreIron",
-  "OreCopper",
-  "Stone",
-  "Coal",
-  "OreGold",
-  "Water",
-  "Plastic",
-  "Rubber",
-  "PetroleumCoke",
-  "Sulfur",
-  "CompactedCoal",
-  "RawQuartz",
-  "OreBauxite",
-];
-const notWantedEndProducts = [
-  "OreGold",
-  "Water",
-  "OreGold",
-  "Plastic",
-  "Rubber",
-  "PetroleumCoke",
-  "Sulfur",
-  "CompactedCoal",
-  "RawQuartz",
-  "OreBauxite",
-];
-
-const sumResourceRates = (inputList: ProductionUnit[]) => {
-  const ret: ProductionUnit[] = [];
-  for (const item of inputList) {
-    const existingItem = ret.find((x) => x.product === item.product);
-    if (existingItem) {
-      existingItem.rate += item.rate;
-    } else {
-      ret.push(item);
-    }
-  }
-  return ret;
-};
-
-console.log("start");
 const allRecipes = getRecipesFromConfig();
-const relatedRecipes = findAllRelatedRecipes(product, allRecipes);
-console.log("relatedRecipes.length", relatedRecipes.length);
-const recipes = getRemainingRecipes(relatedRecipes, notWantedEndProducts);
-console.log("recipes.length", recipes.length);
-export const recipeLookup = createRecipeLookup(recipes);
-const ingredientFinder = createIngredientFinder(recipes);
-const productResults = calculationBottomUp(recipes, recipeLookup);
-const recipeVariants = productResults.get(product)!;
-console.log("productResults", recipeVariants);
-const allRelatedProducts = Array.from(recipeLookup.keys());
-console.log("allRelatedProducts", allRelatedProducts);
-const numberOfAlternateRecipes = Array.from(recipeLookup.values()).map(
-  (x) => x.length
-);
-const combinations = generateCombinations(numberOfAlternateRecipes);
-console.log("combinations.length", combinations.length);
 
-const dataSource: {
-  key: string;
-  combination: Map<string, number>;
-  productionUnits: ProductionUnit[];
-  resources: ProductionUnit[];
-  identifier: string;
-}[] = [];
-
-for (const combination of combinations) {
-  const recipeOfEachProd: Map<string, number> = new Map();
-  for (let i = 0; i < allRelatedProducts.length; i++) {
-    recipeOfEachProd.set(allRelatedProducts[i], combination[i]);
-  }
-  const returnValue = calculateProductionSetup(
-    product,
-    outputRate,
-    recipeOfEachProd
-  );
-  const identifier = JSON.stringify(returnValue);
-  if (!dataSource.some((x) => x.identifier === identifier)) {
-    dataSource.push({
-      key: combination.join(),
-      combination: recipeOfEachProd,
-      productionUnits: returnValue,
-      resources: sumResourceRates(
-        returnValue.filter((x) => x.variant === undefined)
-      ),
-      identifier,
-    });
-  }
-}
-console.log("dataSource.length", dataSource.length);
-
-const renderFunction = (x: ProductionUnit[]) => (
-  <Table
-    showHeader={false}
-    pagination={false}
-    columns={[
-      { dataIndex: "product" },
-      {
-        dataIndex: "rate",
-        render: (x) => (x ? Math.round(x * 100) / 100 : null),
-      },
-      {
-        dataIndex: "numberOfMachines",
-        render: (x) => (x ? Math.round(x * 100) / 100 : null),
-      },
-      { dataIndex: "recipeName" },
-      {
-        dataIndex: "ingredients",
-        render: (_, x) =>
-          recipes
-            .find((y) => y.className === x.recipeName)
-            ?.ingredients.map((z) => z.name)
-            .join(", "),
-      },
-    ]}
-    dataSource={x.map((y, i) => ({
-      key: i,
-      ...y,
-    }))}
-  />
-);
-const sortedDataSource = dataSource.sort((a, b) => {
-  const numberOfResources = a.resources.length - b.resources.length;
-  const rateA = a.resources.reduce((acc, x) => acc + x.rate, 0);
-  const rateB = b.resources.reduce((acc, x) => acc + x.rate, 0);
-  return numberOfResources === 0 ? rateA - rateB : numberOfResources;
-});
-
-/* const ingredientsWithRates = calculateIngredientsWithRates(product, 1);
-console.log("ingredientsWithRates", ingredientsWithRates);
-
-const withoutRecursion = calculateIngredientsWithoutRecursion(product, 1);
-console.log("withoutRecursion", withoutRecursion); */
 export const App = () => {
+  const [productToProduce, setProductToProduce] = useState(relevantProducts[0]);
+  const { usedRecipes, usedProducts } = findAllRelatedRecipesAndProducts(
+    productToProduce,
+    allRecipes
+  );
+  console.log(
+    "usedRecipes",
+    usedRecipes.map((x) => ({
+      recipeName: x.recipeName,
+      productName: x.productName,
+      ingredients: x.ingredients.map((y) => y.name).join(", "),
+    }))
+  );
+  console.log("usedProducts", usedProducts);
+  const [recipesToChooseFrom, setRecipesToChooseFrom] = useState<Recipe[]>([]);
+  useEffect(() => setRecipesToChooseFrom(usedRecipes), [productToProduce]);
+  const recipeLookup = createRecipeLookup(recipesToChooseFrom);
+  const ingredientFinder = createIngredientFinder(recipesToChooseFrom);
+
+  const productResults = calculationBottomUp(usedProducts, recipeLookup);
+  const recipeVariants = productResults.get(productToProduce)!;
   return (
     <>
-      <Table
-        columns={[
-          {
-            dataIndex: "resources",
-            title: "Resources",
-            render: renderFunction,
-          },
-          {
-            dataIndex: "numberOfResources",
-            title: "Number of resources",
-            sorter: (a, b) => a.resources.length - b.resources.length,
-            render: (_, x) => x.resources.length,
-          },
-          {
-            dataIndex: "totalRate",
-            title: "Total rate",
-            render: (_, x) => x.resources.reduce((acc, x) => acc + x.rate, 0),
-            sorter: (a, b) =>
-              a.resources.reduce((acc, x) => acc + x.rate, 0) -
-              b.resources.reduce((acc, x) => acc + x.rate, 0),
-          },
-          {
-            dataIndex: "usedRecipes",
-            title: "Used Recipes",
-            render: (_, x) => {
-              const recipeWithIngredients: {
-                recipeName: string;
-                ingredients: string;
-              }[] = [];
-              for (const productionUnit of x.productionUnits) {
-                if (
-                  productionUnit.recipeName &&
-                  !recipeWithIngredients.some(
-                    (y) => y.recipeName === productionUnit.recipeName
-                  )
-                ) {
-                  const ingredients = recipes
-                    .find((y) => y.className === productionUnit.recipeName)!
-                    .ingredients.map((z) => z.name)
-                    .join(", ");
-                  recipeWithIngredients.push({
-                    recipeName: productionUnit.recipeName,
-                    ingredients,
-                  });
-                }
-              }
-              return (
-                <Row gutter={6}>
-                  {recipeWithIngredients.map((x) => (
-                    <Col key={x.recipeName}>
-                      <Tooltip title={x.ingredients}>{x.recipeName}</Tooltip>
-                      <Divider type="vertical" />
-                    </Col>
-                  ))}
-                </Row>
+      <Form>
+        <Form.Item label="Select a product to produce">
+          <Select
+            options={relevantProducts.map((x) => ({
+              key: x,
+              value: x,
+              label: x,
+            }))}
+            value={productToProduce}
+            onChange={(x) => setProductToProduce(x)}
+          />
+        </Form.Item>
+        <Form.Item label="Select all wanted recipes">
+          <Select
+            mode="multiple"
+            options={usedRecipes.map((x) => ({
+              key: x.recipeName,
+              value: x.recipeName,
+              label: x.recipeName,
+            }))}
+            value={recipesToChooseFrom.map((x) => x.recipeName)}
+            onChange={(x) => {
+              const recipes = usedRecipes.filter((recipe) =>
+                x.includes(recipe.recipeName)
               );
-            },
-          },
-          {
-            dataIndex: "numberOfMachines",
-            title: "Number Of Machines",
-            render: (_, x) =>
-              Math.round(
-                x.productionUnits.reduce(
-                  (acc, x) => acc + (x.numberOfMachines ?? 0),
-                  0
-                ) * 100
-              ) / 100,
-          },
-          /* {
-            dataIndex: "productionUnits",
-            title: "Production Units",
-            render: renderFunction,
-          }, */
-        ]}
-        dataSource={sortedDataSource.slice(0, 100)}
+              setRecipesToChooseFrom(recipes);
+            }}
+          />
+        </Form.Item>
+      </Form>
+      <Select
+        mode="multiple"
+        options={[{ value: "someValue", label: "someLabel" }]}
       />
       <BestRecipesOfProducts
-        recipeVariants={recipeVariants}
+        recipeVariants={recipeVariants ?? []}
         ingredientFinder={ingredientFinder}
       />
       <RecipeOverview recipeLookup={recipeLookup} />
-      <pre>{JSON.stringify(recipes, null, 2)}</pre>
+      <pre>{JSON.stringify(allRecipes, null, 2)}</pre>
     </>
   );
 };

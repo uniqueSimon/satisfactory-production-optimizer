@@ -1,24 +1,13 @@
-import { LookedUpRecipe, Recipe } from "./App";
+import { Recipe } from "./App";
 
 export const createRecipeLookup = (recipes: Recipe[]) => {
-  const lookup = new Map<string, LookedUpRecipe[]>();
+  const lookup = new Map<string, Recipe[]>();
   for (const recipe of recipes) {
-    if (lookup.has(recipe.productName)) {
-      lookup.get(recipe.productName)!.push({
-        recipeName: recipe.className,
-        productAmount: recipe.productAmount,
-        time: recipe.time,
-        ingredients: recipe.ingredients,
-      });
+    const prevEntry = lookup.get(recipe.productName);
+    if (prevEntry) {
+      prevEntry.push(recipe);
     } else {
-      lookup.set(recipe.productName, [
-        {
-          recipeName: recipe.className,
-          productAmount: recipe.productAmount,
-          time: recipe.time,
-          ingredients: recipe.ingredients,
-        },
-      ]);
+      lookup.set(recipe.productName, [recipe]);
     }
   }
   return lookup;

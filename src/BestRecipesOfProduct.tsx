@@ -5,23 +5,26 @@ export const BestRecipesOfProducts = (props: {
   recipeVariants: RecipeVariant[];
   ingredientFinder: Map<string, string[]>;
 }) => {
-  const dataSource = props.recipeVariants.map((x, i) => {
-    const usedRecipes = new Set<string>();
-    for (const detail of x.details) {
-      detail.recipeNames.forEach((x) => usedRecipes.add(x));
-    }
-    return {
-      key: i,
-      resources: x.resources,
-      details: x.details,
-      usedRecipes: [...usedRecipes],
-    };
-  });
+  const dataSource = props.recipeVariants
+    .sort((a, b) => [...a.resourceTypes].length - [...b.resourceTypes].length)
+    .map((x, i) => {
+      const usedRecipes = new Set<string>();
+      for (const detail of x.details) {
+        detail.recipeNames.forEach((x) => usedRecipes.add(x));
+      }
+      return {
+        key: i,
+        resources: x.resources,
+        details: x.details,
+        usedRecipes: [...usedRecipes],
+      };
+    });
   return (
     <Table
       columns={[
         {
           dataIndex: "resources",
+          title: "Resources",
           width: 200,
           render: (x: Map<string, number>) => {
             return [...x.entries()].map(([name, rate]) => (
@@ -34,6 +37,7 @@ export const BestRecipesOfProducts = (props: {
         },
         {
           dataIndex: "usedRecipes",
+          title: "Used Recipes",
           width: 500,
           render: (x: string[]) => {
             return (
@@ -50,7 +54,11 @@ export const BestRecipesOfProducts = (props: {
             );
           },
         },
-        { dataIndex: "details", render: (x) => JSON.stringify(x) },
+        {
+          title: "Details",
+          dataIndex: "details",
+          render: (x) => JSON.stringify(x),
+        },
       ]}
       dataSource={dataSource}
     />

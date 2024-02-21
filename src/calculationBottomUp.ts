@@ -1,6 +1,5 @@
-import { LookedUpRecipe, Recipe } from "./App";
+import { Recipe } from "./App";
 import { generateCombinations } from "./generateCombinations";
-
 export interface RecipeVariant {
   resourceTypes: Set<string>;
   resources: Map<string, number>;
@@ -13,54 +12,27 @@ interface Details {
 }
 
 export const calculationBottomUp = (
-  recipes: Recipe[],
-  recipeLookup: Map<string, LookedUpRecipe[]>
+  products: string[],
+  recipeLookup: Map<string, Recipe[]>
 ) => {
   const productResults = new Map<string, RecipeVariant[]>();
-
-  for (const resource of ["OreIron", "OreCopper", "Coal"]) {
-    productResults.set(resource, [
-      {
-        resourceTypes: new Set([resource]),
-        resources: new Map([[resource, 1]]),
-        details: [{ product: resource, rate: 1, recipeNames: [] }],
-      },
-    ]);
-  }
-  const allProducts = new Set(recipes.map((x) => x.productName));
-  while (allProducts.size > 0) {
+  const allProducts = new Set(products);
+  let i = 0;
+  while (allProducts.size > 0 && i < 100) {
     for (const product of allProducts) {
-      const viableRecipes = recipeLookup.get(product)!;
-      const allIngredientsAreKnown = !viableRecipes.some((x) =>
-        x.ingredients.some((y) => !productResults.has(y.name))
+      const viableRecipes = recipeLookup.get(product);
+      if (!viableRecipes) {
+        console.log("bottomUp: no recipe for", product);
+        continue;
+      }
+      const allIngredientsAreKnown = viableRecipes.every((x) =>
+        x.ingredients.every(
+          (y) => productResults.has(y.name) || !allProducts.has(y.name)
+        )
       );
       if (allIngredientsAreKnown) {
         const recipeVariants: RecipeVariant[] = [];
         for (const recipe of viableRecipes) {
-          /* 
-          const concatenatedRecipes = recipe.ingredients.map(
-            (x) => productResults.get(x.name)!
-          );
-          const totalCombinations = concatenatedRecipes
-            .map((x) => x.length)
-            .reduce((acc, val) => acc * val, 1);
-
-          for (let i = 0; i < totalCombinations; i++) {
-            let j = i;
-            const combination = concatenatedRecipes.map((x) => {
-              const recipeVariant = x[j % x.length];
-              j = Math.floor(j / x.length);
-              return recipeVariant;
-            });
-          }
-          const allVariantsOfIngredients = new Map<number, RecipeVariant[]>();
-          for (const ingredient of recipe.ingredients) {
-            const normalized = productResults.get(ingredient.name)!;
-            for (const ingredientVariant of normalized) {
-              allVariantsOfIngredients.set(ingredientVariant);
-            }
-          }
- */
           const ingredients = getResultsFromIngredients(recipe, productResults);
           const combinations = generateCombinations(
             ingredients.map((x) => x.length)
@@ -71,26 +43,35 @@ export const calculationBottomUp = (
               combination,
               recipe
             );
-
-            addNewVariantToArray(recipeVariant, recipeVariants);
+            recipeVariants.push(recipeVariant);
           }
         }
-        productResults.set(product, recipeVariants);
+        const filteredRecipeVariants =
+          filterOutInefficientVariants(recipeVariants);
+        productResults.set(product, filteredRecipeVariants);
         allProducts.delete(product);
       }
     }
+    console.log("bottomUp: remaining products", allProducts);
+    i++;
   }
   return productResults;
 };
 
 const getResultsFromIngredients = (
-  recipe: LookedUpRecipe,
-  cachedResults: Map<string, RecipeVariant[]>
+  recipe: Recipe,
+  productResults: Map<string, RecipeVariant[]>
 ) => {
   const ret: RecipeVariant[][] = [];
   for (const ingredient of recipe.ingredients) {
     const ingredienteRate = ingredient.amount / recipe.productAmount;
-    const normalized = cachedResults.get(ingredient.name)!;
+    const normalized = productResults.get(ingredient.name) ?? [
+      {
+        resourceTypes: new Set([ingredient.name]),
+        resources: new Map([[ingredient.name, 1]]),
+        details: [{ product: ingredient.name, rate: 1, recipeNames: [] }],
+      },
+    ];
     const withRates = normalized.map((y) => {
       const resources = new Map<string, number>();
       y.resources.forEach((rate, resource) => {
@@ -110,7 +91,7 @@ const getResultsFromIngredients = (
 const calculateRecipeVariant = (
   ingredients: RecipeVariant[][],
   combination: number[],
-  recipe: LookedUpRecipe
+  recipe: Recipe
 ): RecipeVariant => {
   const resources = new Map<string, number>();
   const details: Details[] = [];
@@ -134,43 +115,24 @@ const calculateRecipeVariant = (
   return { resources, details, resourceTypes };
 };
 
-const addNewVariantToArray = (
-  recipeVariant: RecipeVariant,
-  recipeVariants: RecipeVariant[]
-) => {
-  let shouldPush = true;
-  let replaceIndex: number | null = null;
-  let i = 0;
-  for (const oldRecipeVariant of recipeVariants) {
-    if (
-      setsAreEqual(recipeVariant.resourceTypes, oldRecipeVariant.resourceTypes)
-    ) {
-      let partlyMoreEfficient = false;
-      let moreEfficient = true;
-      for (const resource of recipeVariant.resourceTypes) {
-        const oldRate = oldRecipeVariant.resources.get(resource)!;
-        const newRate = recipeVariant.resources.get(resource)!;
-        if (newRate < oldRate) {
-          partlyMoreEfficient = true;
-        } else if (oldRate < newRate) {
-          moreEfficient = false;
-        }
+const filterOutInefficientVariants = (recipeVariants: RecipeVariant[]) => {
+  const groupedByResourceTypes = new Map<string, RecipeVariant>();
+  for (const recipeVariant of recipeVariants) {
+    const key = Array.from(recipeVariant.resourceTypes).sort().join(",");
+    const existing = groupedByResourceTypes.get(key);
+    if (existing) {
+      const oldTotalRate = existing.details.reduce((acc, x) => {
+        return acc + x.rate;
+      }, 0);
+      const newTotalRate = recipeVariant.details.reduce((acc, x) => {
+        return acc + x.rate;
+      }, 0);
+      if (newTotalRate < oldTotalRate) {
+        groupedByResourceTypes.set(key, recipeVariant);
       }
-      if (moreEfficient) {
-        replaceIndex = i;
-      }
-      if (!partlyMoreEfficient) {
-        shouldPush = false;
-      }
+    } else {
+      groupedByResourceTypes.set(key, recipeVariant);
     }
-    i++;
   }
-  if (replaceIndex) {
-    recipeVariants[replaceIndex] = recipeVariant;
-  } else if (shouldPush) {
-    recipeVariants.push(recipeVariant);
-  }
+  return Array.from(groupedByResourceTypes.values());
 };
-
-const setsAreEqual = (a: Set<string>, b: Set<string>) =>
-  a.size === b.size && [...a].every((value) => b.has(value));
