@@ -1,9 +1,11 @@
-import { Col, Divider, Row, Table, Tooltip } from "antd";
+import { Button, Col, Divider, Row, Table, Tooltip } from "antd";
 import { RecipeVariant } from "./calculationBottomUp";
 
 export const BestRecipesOfProducts = (props: {
+  productToProduce: string;
   recipeVariants: RecipeVariant[];
   ingredientFinder: Map<string, string[]>;
+  chooseResourceTypes: (resourceTypes: Set<string>) => void;
 }) => {
   const dataSource = props.recipeVariants
     .sort((a, b) => [...a.resourceTypes].length - [...b.resourceTypes].length)
@@ -14,6 +16,7 @@ export const BestRecipesOfProducts = (props: {
       }
       return {
         key: i,
+        resourceTypes: x.resourceTypes,
         resources: x.resources,
         details: x.details,
         usedRecipes: [...usedRecipes],
@@ -22,6 +25,13 @@ export const BestRecipesOfProducts = (props: {
   return (
     <Table
       columns={[
+        {
+          dataIndex: "resourceTypes",
+          title: "Choose Resource Types",
+          render: (x: Set<string>) => (
+            <Button onClick={() => props.chooseResourceTypes(x)}>Choose</Button>
+          ),
+        },
         {
           dataIndex: "resources",
           title: "Resources",
@@ -51,6 +61,31 @@ export const BestRecipesOfProducts = (props: {
                   </Col>
                 ))}
               </Row>
+            );
+          },
+        },
+        {
+          dataIndex: "linkToCalculator",
+          title: "Link to satisfactory-calculator.com",
+          render: (_, record) => {
+            const baseLink =
+              "https://satisfactory-calculator.com/en/planners/production/index/json/";
+            const altRecipes = record.usedRecipes.map((x) => `Recipe_${x}_C`);
+            const obj = {
+              [`Desc_${props.productToProduce}_C`]: "1",
+              altRecipes,
+            };
+            return (
+              <Button
+                onClick={() =>
+                  window.open(
+                    `${baseLink}${encodeURIComponent(JSON.stringify(obj))}`,
+                    "_blank"
+                  )
+                }
+              >
+                Open
+              </Button>
             );
           },
         },

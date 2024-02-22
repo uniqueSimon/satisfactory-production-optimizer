@@ -24,6 +24,7 @@ export const findAllRelatedRecipesAndProducts = (
 ) => {
   const usedRecipes: Recipe[] = [];
   const usedProducts: string[] = [];
+  const usedResources = new Set<string>();
   const recursion = (product: string) => {
     if (usedProducts.includes(product)) {
       return;
@@ -35,7 +36,7 @@ export const findAllRelatedRecipesAndProducts = (
         !notWantedRecipes.includes(x.recipeName)
     );
     if (viableRecipes.length === 0) {
-      console.log("no recipe for", product);
+      usedResources.add(product);
     } else {
       usedProducts.push(product);
     }
@@ -47,5 +48,5 @@ export const findAllRelatedRecipesAndProducts = (
     }
   };
   recursion(product);
-  return { usedRecipes, usedProducts };
+  return { usedRecipes, usedProducts, usedResources: [...usedResources] };
 };

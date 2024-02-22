@@ -1,13 +1,21 @@
 import { getRecipesFromConfig } from "./getRecipesFromConfig";
-import { createRecipeLookup } from "./createRecipeLookup";
-import { RecipeOverview } from "./RecipeOverview";
-import { calculationBottomUp } from "./calculationBottomUp";
 import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
 import { createIngredientFinder } from "./createIngredientFinder";
 import relevantProducts from "./relevantProducts.json";
-import { Form, Select } from "antd";
+import {
+  Button,
+  Form,
+  InputNumber,
+  Select,
+  Space,
+  Switch,
+  Tooltip,
+} from "antd";
 import { useEffect, useState } from "react";
 import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
+import { recipeTreeSearch } from "./recipeTreeSearch";
+import { RecipeSelection } from "./RecipeSelection";
+import { ExclamationCircleOutlined } from "@ant-design/icons";
 
 export interface Recipe {
   recipeName: string;
@@ -17,30 +25,60 @@ export interface Recipe {
   time: number;
 }
 
+const groupRecipesByProduct = (recipes: Recipe[]) => {
+  const grouped = new Map<string, { recipe: Recipe; selected: boolean }[]>();
+  for (const recipe of recipes) {
+    const entry = grouped.get(recipe.productName);
+    if (entry) {
+      entry.push({ recipe, selected: true });
+    } else {
+      grouped.set(recipe.productName, [{ recipe, selected: true }]);
+    }
+  }
+  return grouped;
+};
+
 const allRecipes = getRecipesFromConfig();
+const ingredientFinder = createIngredientFinder(allRecipes);
 
 export const App = () => {
-  const [productToProduce, setProductToProduce] = useState(relevantProducts[0]);
-  const { usedRecipes, usedProducts } = findAllRelatedRecipesAndProducts(
+  const [productToProduce, setProductToProduce] = useState(
+    "IronPlateReinforced"
+  );
+  const [wantedOutputRate, setWantedOutputRate] = useState(1);
+  const [
+    onlyOneVariantPerResourceTypes,
+    setShowOnlyOneVariantPerResourceTypes,
+  ] = useState(true);
+  const [groupedRecipes, setGroupedRecipes] = useState(
+    new Map<string, { recipe: Recipe; selected: boolean }[]>()
+  );
+  const [resourcesToChooseFrom, setResourcesToChooseFrom] = useState<string[]>(
+    []
+  );
+  const [productsToChooseFrom, setProductsToChooseFrom] = useState<string[]>(
+    []
+  );
+  const [currentResources, setCurrentResources] = useState<string[]>([]);
+  useEffect(() => {
+    const { usedProducts, usedRecipes, usedResources } =
+      findAllRelatedRecipesAndProducts(productToProduce, allRecipes);
+    setResourcesToChooseFrom(usedResources);
+    setProductsToChooseFrom(usedProducts);
+    setCurrentResources(usedResources);
+    const groupedRecipesByProduct = groupRecipesByProduct(usedRecipes);
+    setGroupedRecipes(groupedRecipesByProduct);
+  }, [productToProduce]);
+  const currentRecipes = Array.from(groupedRecipes.values())
+    .flat()
+    .filter((x) => x.selected)
+    .map((x) => x.recipe);
+  const { recipeVariants, tooManyVariants } = recipeTreeSearch(
     productToProduce,
-    allRecipes
+    currentResources,
+    currentRecipes,
+    onlyOneVariantPerResourceTypes
   );
-  console.log(
-    "usedRecipes",
-    usedRecipes.map((x) => ({
-      recipeName: x.recipeName,
-      productName: x.productName,
-      ingredients: x.ingredients.map((y) => y.name).join(", "),
-    }))
-  );
-  console.log("usedProducts", usedProducts);
-  const [recipesToChooseFrom, setRecipesToChooseFrom] = useState<Recipe[]>([]);
-  useEffect(() => setRecipesToChooseFrom(usedRecipes), [productToProduce]);
-  const recipeLookup = createRecipeLookup(recipesToChooseFrom);
-  const ingredientFinder = createIngredientFinder(recipesToChooseFrom);
-
-  const productResults = calculationBottomUp(usedProducts, recipeLookup);
-  const recipeVariants = productResults.get(productToProduce)!;
   return (
     <>
       <Form>
@@ -55,34 +93,77 @@ export const App = () => {
             onChange={(x) => setProductToProduce(x)}
           />
         </Form.Item>
-        <Form.Item label="Select all wanted recipes">
-          <Select
-            mode="multiple"
-            options={usedRecipes.map((x) => ({
-              key: x.recipeName,
-              value: x.recipeName,
-              label: x.recipeName,
-            }))}
-            value={recipesToChooseFrom.map((x) => x.recipeName)}
-            onChange={(x) => {
-              const recipes = usedRecipes.filter((recipe) =>
-                x.includes(recipe.recipeName)
-              );
-              setRecipesToChooseFrom(recipes);
-            }}
+        <Form.Item label="Wanted output rate">
+          <InputNumber
+            value={wantedOutputRate}
+            onChange={(x) => setWantedOutputRate(x!)}
           />
         </Form.Item>
+        <RecipeSelection
+          groupedRecipes={groupedRecipes}
+          setGroupedRecipes={setGroupedRecipes}
+        />
+        {/* <Form.Item label="Select all wanted recipes">
+          <Button onClick={() => setCurrentRecipes(recipesToChooseFrom)}>
+            Select all recipes
+          </Button>
+          <Select
+            mode="multiple"
+            allowClear={true}
+            options={recipesToChooseFrom.map((x) => ({
+              key: x,
+              value: x,
+              label: x,
+            }))}
+            value={currentRecipes}
+            onChange={(x) => setCurrentRecipes(x)}
+          />
+        </Form.Item> */}
+        <Form.Item label="Select all wanted resources">
+          <Button onClick={() => setCurrentResources(resourcesToChooseFrom)}>
+            Select all resources
+          </Button>
+          <Select
+            mode="multiple"
+            allowClear={true}
+            options={[...resourcesToChooseFrom, ...productsToChooseFrom].map(
+              (x) => ({
+                key: x,
+                value: x,
+                label: x,
+              })
+            )}
+            value={currentResources}
+            onChange={(x) => setCurrentResources(x)}
+          />
+        </Form.Item>
+        <Form.Item label="Show only one variant per resource types">
+          <Space>
+            <Switch
+              value={onlyOneVariantPerResourceTypes}
+              onChange={(x) => setShowOnlyOneVariantPerResourceTypes(x)}
+            />
+            {tooManyVariants && (
+              <Tooltip title="There are too many variants! Only one variant per resource types is shown.">
+                <ExclamationCircleOutlined
+                  style={{ fontSize: "30px", color: "red" }}
+                />
+              </Tooltip>
+            )}
+          </Space>
+        </Form.Item>
       </Form>
-      <Select
-        mode="multiple"
-        options={[{ value: "someValue", label: "someLabel" }]}
-      />
       <BestRecipesOfProducts
+        productToProduce={productToProduce}
         recipeVariants={recipeVariants ?? []}
         ingredientFinder={ingredientFinder}
+        chooseResourceTypes={(resourceTypes) => {
+          setCurrentResources([...resourceTypes]);
+          setShowOnlyOneVariantPerResourceTypes(false);
+        }}
       />
-      <RecipeOverview recipeLookup={recipeLookup} />
-      <pre>{JSON.stringify(allRecipes, null, 2)}</pre>
+      {/* <RecipeOverview recipeLookup={recipeLookup} />
+      <pre>{JSON.stringify(allRecipes, null, 2)}</pre> */}
     </>
   );
 };
