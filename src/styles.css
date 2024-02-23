@@ -1,0 +1,21 @@
+/* styles.css */
+
+/* Page container styles */
+.page-container {
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+/* Form container styles */
+.form-container {
+  margin-bottom: 20px;
+}
+
+/* Table container styles */
+.table-container {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+}

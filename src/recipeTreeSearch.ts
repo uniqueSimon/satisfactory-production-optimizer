@@ -1,18 +1,12 @@
 import { Recipe } from "./App";
-import { generateCombinations } from "./generateCombinations";
 
 export interface RecipeVariant {
   resourceTypes: Set<string>;
   resources: Map<string, number>;
-  details: Details[];
-}
-interface Details {
-  recipeNames: string[];
-  product: string;
-  rate: number;
+  usedRecipes: Set<string>;
 }
 
-const notWantedRecipesBasic = [
+const notWantedRecipes = [
   "Alternate_RecycledRubber",
   "Alternate_Plastic_1",
   "ResidualPlastic",
@@ -35,7 +29,8 @@ export const recipeTreeSearch = (
   outputProduct: string,
   inputProducts: string[],
   recipes: Recipe[],
-  onlyOneVariantPerResourceTypes: boolean
+  onlyOneVariantPerResourceTypes: boolean,
+  wantedOutputRate: number
 ) => {
   let tooManyVariants = false;
   const recursion = (product: string): RecipeVariant[] | null => {
@@ -44,7 +39,7 @@ export const recipeTreeSearch = (
         {
           resourceTypes: new Set([product]),
           resources: new Map([[product, 1]]),
-          details: [{ product: product, rate: 1, recipeNames: [] }],
+          usedRecipes: new Set(),
         },
       ];
     }
@@ -52,7 +47,7 @@ export const recipeTreeSearch = (
       (x) =>
         x.productName === product &&
         x.ingredients.every((x) => !notWantedProducts.includes(x.name)) &&
-        !notWantedRecipesBasic.includes(x.recipeName)
+        !notWantedRecipes.includes(x.recipeName)
     );
     if (viableRecipes.length === 0) {
       return null;
@@ -70,11 +65,11 @@ export const recipeTreeSearch = (
             y.resources.forEach((rate, resource) => {
               resources.set(resource, rate * ingredienteRate);
             });
-            const details = y.details.map((z) => ({
-              ...z,
-              rate: z.rate * ingredienteRate,
-            }));
-            return { resourceTypes: y.resourceTypes, resources, details };
+            return {
+              resourceTypes: y.resourceTypes,
+              usedRecipes: y.usedRecipes,
+              resources,
+            };
           });
           concatenatedIngredients.push(ingredientResult);
         } else {
@@ -92,48 +87,74 @@ export const recipeTreeSearch = (
         const recipeVariant = calculateRecipeVariant(
           concatenatedIngredients,
           combination,
-          recipe
+          recipe.recipeName
         );
         recipeVariants.push(recipeVariant);
       }
     }
-    if (!onlyOneVariantPerResourceTypes && recipeVariants.length > 300) {
+    if (!onlyOneVariantPerResourceTypes && recipeVariants.length > 100) {
       tooManyVariants = true;
-      return filterOutInefficientVariants(recipeVariants);
+      return recipeVariants.slice(0, 100);
     }
     if (onlyOneVariantPerResourceTypes) {
       return filterOutInefficientVariants(recipeVariants);
     }
     return recipeVariants;
   };
-  return { recipeVariants: recursion(outputProduct), tooManyVariants };
+  const recipeVariantsNormalized = recursion(outputProduct);
+  const recipeVariants = recipeVariantsNormalized
+    ? recipeVariantsNormalized.map((y) => {
+        const resources = new Map<string, number>();
+        y.resources.forEach((rate, resource) => {
+          resources.set(resource, rate * wantedOutputRate);
+        });
+        return {
+          resourceTypes: y.resourceTypes,
+          usedRecipes: y.usedRecipes,
+          resources,
+        };
+      })
+    : [];
+  return { recipeVariants, tooManyVariants };
+};
+
+const generateCombinations = (lastCombination: number[]) => {
+  const allCombinations: number[][] = [];
+
+  const generateCombinationsRecursion = (currentCombination: number[] = []) => {
+    if (currentCombination.length === lastCombination.length) {
+      allCombinations.push(currentCombination);
+      return;
+    }
+    const maxValueOfDigit = lastCombination[currentCombination.length];
+    for (let digit = 0; digit < maxValueOfDigit; digit++) {
+      generateCombinationsRecursion([...currentCombination, digit]);
+    }
+  };
+  generateCombinationsRecursion();
+  return allCombinations;
 };
 
 const calculateRecipeVariant = (
   ingredients: RecipeVariant[][],
   combination: number[],
-  recipe: Recipe
+  recipeName: string
 ): RecipeVariant => {
   const resources = new Map<string, number>();
-  const details: Details[] = [];
+  const usedRecipes = new Set<string>();
   const resourceTypes = new Set<string>();
   for (const ingredientIndex in combination) {
     const variant = combination[ingredientIndex];
     const ingredientVariant = ingredients[ingredientIndex][variant];
-
-    const ingredientDetails = ingredientVariant.details.map((x) => ({
-      ...x,
-      recipeNames: [...x.recipeNames, recipe.recipeName],
-    }));
-    details.push(...ingredientDetails);
-
+    ingredientVariant.usedRecipes.forEach((x) => usedRecipes.add(x));
+    usedRecipes.add(recipeName);
     ingredientVariant.resources.forEach((rate, resource) => {
       const oldRate = resources.get(resource);
       resources.set(resource, (oldRate ?? 0) + rate);
     });
     ingredientVariant.resourceTypes.forEach((x) => resourceTypes.add(x));
   }
-  return { resources, details, resourceTypes };
+  return { resources, usedRecipes, resourceTypes };
 };
 
 const filterOutInefficientVariants = (recipeVariants: RecipeVariant[]) => {
@@ -142,12 +163,14 @@ const filterOutInefficientVariants = (recipeVariants: RecipeVariant[]) => {
     const key = Array.from(recipeVariant.resourceTypes).sort().join(",");
     const existing = groupedByResourceTypes.get(key);
     if (existing) {
-      const oldTotalRate = existing.details.reduce((acc, x) => {
-        return acc + x.rate;
-      }, 0);
-      const newTotalRate = recipeVariant.details.reduce((acc, x) => {
-        return acc + x.rate;
-      }, 0);
+      const oldTotalRate = [...existing.resources.values()].reduce(
+        (acc, x) => acc + x,
+        0
+      );
+      const newTotalRate = [...recipeVariant.resources.values()].reduce(
+        (acc, x) => acc + x,
+        0
+      );
       if (newTotalRate < oldTotalRate) {
         groupedByResourceTypes.set(key, recipeVariant);
       }

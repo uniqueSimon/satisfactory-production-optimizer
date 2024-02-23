@@ -1,21 +1,25 @@
 import { getRecipesFromConfig } from "./getRecipesFromConfig";
 import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
-import { createIngredientFinder } from "./createIngredientFinder";
 import relevantProducts from "./relevantProducts.json";
 import {
   Button,
+  Col,
   Form,
   InputNumber,
+  Row,
   Select,
   Space,
   Switch,
   Tooltip,
+  Typography,
 } from "antd";
 import { useEffect, useState } from "react";
 import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
 import { recipeTreeSearch } from "./recipeTreeSearch";
 import { RecipeSelection } from "./RecipeSelection";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
+import { narrowDownRecipes } from "./narrowDownRecipes";
+import "./styles.css";
 
 export interface Recipe {
   recipeName: string;
@@ -25,31 +29,48 @@ export interface Recipe {
   time: number;
 }
 
-const groupRecipesByProduct = (recipes: Recipe[]) => {
+const groupRecipesByProduct = (
+  recipes: Recipe[],
+  oldSelection: Map<string, { recipe: Recipe; selected: boolean }[]>
+) => {
   const grouped = new Map<string, { recipe: Recipe; selected: boolean }[]>();
   for (const recipe of recipes) {
     const entry = grouped.get(recipe.productName);
+    const oldEntry = oldSelection.get(recipe.productName);
+    const selected =
+      oldEntry?.find((x) => x.recipe === recipe)?.selected ?? true;
     if (entry) {
-      entry.push({ recipe, selected: true });
+      entry.push({ recipe, selected });
     } else {
-      grouped.set(recipe.productName, [{ recipe, selected: true }]);
+      grouped.set(recipe.productName, [{ recipe, selected }]);
     }
   }
   return grouped;
 };
 
 const allRecipes = getRecipesFromConfig();
-const ingredientFinder = createIngredientFinder(allRecipes);
+
+const findRecipeByName = new Map<string, Recipe>();
+for (const recipe of allRecipes) {
+  findRecipeByName.set(recipe.recipeName, recipe);
+}
 
 export const App = () => {
   const [productToProduce, setProductToProduce] = useState(
     "IronPlateReinforced"
   );
   const [wantedOutputRate, setWantedOutputRate] = useState(1);
+  const [excludedRecipes, setExcludedRecipes] = useState([
+    "Screw", //same as Alternate_Screw, no IronRod
+    "Alternate_ReinforcedIronPlate_1", //worse than IronPlateReinforced, same Ingredients
+    "IngotSteel", //worse than Alternate_IngotSteel_1, same Ingredients
+    //"IronPlateReinforced",
+  ]);
   const [
     onlyOneVariantPerResourceTypes,
     setShowOnlyOneVariantPerResourceTypes,
   ] = useState(true);
+  const [allRelevantRecipes, setAllRelevantRecipes] = useState<Recipe[]>([]);
   const [groupedRecipes, setGroupedRecipes] = useState(
     new Map<string, { recipe: Recipe; selected: boolean }[]>()
   );
@@ -62,13 +83,16 @@ export const App = () => {
   const [currentResources, setCurrentResources] = useState<string[]>([]);
   useEffect(() => {
     const { usedProducts, usedRecipes, usedResources } =
-      findAllRelatedRecipesAndProducts(productToProduce, allRecipes);
+      findAllRelatedRecipesAndProducts(
+        productToProduce,
+        allRecipes.filter((x) => !excludedRecipes.includes(x.recipeName))
+      );
     setResourcesToChooseFrom(usedResources);
     setProductsToChooseFrom(usedProducts);
     setCurrentResources(usedResources);
-    const groupedRecipesByProduct = groupRecipesByProduct(usedRecipes);
-    setGroupedRecipes(groupedRecipesByProduct);
-  }, [productToProduce]);
+    setGroupedRecipes((old) => groupRecipesByProduct(usedRecipes, old));
+    setAllRelevantRecipes(usedRecipes);
+  }, [productToProduce, excludedRecipes]);
   const currentRecipes = Array.from(groupedRecipes.values())
     .flat()
     .filter((x) => x.selected)
@@ -77,66 +101,98 @@ export const App = () => {
     productToProduce,
     currentResources,
     currentRecipes,
-    onlyOneVariantPerResourceTypes
+    onlyOneVariantPerResourceTypes,
+    wantedOutputRate
   );
+  const updateResourcesAndRecipes = (resources: string[]) => {
+    setCurrentResources(resources);
+    const narrowedDownRecipes = narrowDownRecipes(
+      productToProduce,
+      allRelevantRecipes,
+      resources
+    );
+    setGroupedRecipes((old) => groupRecipesByProduct(narrowedDownRecipes, old));
+  };
+
   return (
-    <>
+    <div className="page-container">
+      <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
-        <Form.Item label="Select a product to produce">
-          <Select
-            options={relevantProducts.map((x) => ({
-              key: x,
-              value: x,
-              label: x,
-            }))}
-            value={productToProduce}
-            onChange={(x) => setProductToProduce(x)}
-          />
-        </Form.Item>
-        <Form.Item label="Wanted output rate">
-          <InputNumber
-            value={wantedOutputRate}
-            onChange={(x) => setWantedOutputRate(x!)}
-          />
+        <Row gutter={16}>
+          <Col span={6}>
+            <Form.Item
+              label="Product"
+              tooltip={{ title: "Select a product to produce" }}
+            >
+              <Select
+                options={relevantProducts.map((x) => ({
+                  key: x,
+                  value: x,
+                  label: x,
+                }))}
+                value={productToProduce}
+                onChange={(x) => setProductToProduce(x)}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item label="Output rate (1/min)">
+              <InputNumber
+                value={wantedOutputRate}
+                onChange={(x) => setWantedOutputRate(x!)}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item label="Recipes to exclude">
+              <Select
+                mode="multiple"
+                allowClear={true}
+                options={allRecipes.map((x) => ({
+                  key: x.recipeName,
+                  value: x.recipeName,
+                  label: x.recipeName,
+                }))}
+                value={excludedRecipes}
+                onChange={(x) => setExcludedRecipes(x)}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item label="Input resources">
+          <Row gutter={16}>
+            <Col span={2}>
+              <Button
+                onClick={() => updateResourcesAndRecipes(resourcesToChooseFrom)}
+              >
+                Select all
+              </Button>
+            </Col>
+            <Col span={22}>
+              <Select
+                mode="multiple"
+                allowClear={true}
+                options={[
+                  ...resourcesToChooseFrom,
+                  ...productsToChooseFrom,
+                ].map((x) => ({
+                  key: x,
+                  value: x,
+                  label: x,
+                }))}
+                value={currentResources}
+                onChange={updateResourcesAndRecipes}
+              />
+            </Col>
+          </Row>
         </Form.Item>
         <RecipeSelection
           groupedRecipes={groupedRecipes}
           setGroupedRecipes={setGroupedRecipes}
+          findRecipeByName={findRecipeByName}
+          inputProducts={currentResources}
+          currentRecipes={currentRecipes}
         />
-        {/* <Form.Item label="Select all wanted recipes">
-          <Button onClick={() => setCurrentRecipes(recipesToChooseFrom)}>
-            Select all recipes
-          </Button>
-          <Select
-            mode="multiple"
-            allowClear={true}
-            options={recipesToChooseFrom.map((x) => ({
-              key: x,
-              value: x,
-              label: x,
-            }))}
-            value={currentRecipes}
-            onChange={(x) => setCurrentRecipes(x)}
-          />
-        </Form.Item> */}
-        <Form.Item label="Select all wanted resources">
-          <Button onClick={() => setCurrentResources(resourcesToChooseFrom)}>
-            Select all resources
-          </Button>
-          <Select
-            mode="multiple"
-            allowClear={true}
-            options={[...resourcesToChooseFrom, ...productsToChooseFrom].map(
-              (x) => ({
-                key: x,
-                value: x,
-                label: x,
-              })
-            )}
-            value={currentResources}
-            onChange={(x) => setCurrentResources(x)}
-          />
-        </Form.Item>
         <Form.Item label="Show only one variant per resource types">
           <Space>
             <Switch
@@ -144,7 +200,7 @@ export const App = () => {
               onChange={(x) => setShowOnlyOneVariantPerResourceTypes(x)}
             />
             {tooManyVariants && (
-              <Tooltip title="There are too many variants! Only one variant per resource types is shown.">
+              <Tooltip title="There are too many variants! Not all variants could be calculated!">
                 <ExclamationCircleOutlined
                   style={{ fontSize: "30px", color: "red" }}
                 />
@@ -155,15 +211,15 @@ export const App = () => {
       </Form>
       <BestRecipesOfProducts
         productToProduce={productToProduce}
+        wantedOutputRate={wantedOutputRate}
         recipeVariants={recipeVariants ?? []}
-        ingredientFinder={ingredientFinder}
+        findRecipeByName={findRecipeByName}
+        currentResourceTypes={currentResources}
         chooseResourceTypes={(resourceTypes) => {
-          setCurrentResources([...resourceTypes]);
+          updateResourcesAndRecipes([...resourceTypes]);
           setShowOnlyOneVariantPerResourceTypes(false);
         }}
       />
-      {/* <RecipeOverview recipeLookup={recipeLookup} />
-      <pre>{JSON.stringify(allRecipes, null, 2)}</pre> */}
-    </>
+    </div>
   );
 };

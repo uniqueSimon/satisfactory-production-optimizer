@@ -1,5 +1,7 @@
-import { Checkbox, Table } from "antd";
+import { Checkbox, Space, Table } from "antd";
 import { Recipe } from "./App";
+import { DetailedRecipeTooltip } from "./DetailedRecipeTooltip";
+import { RecipeTooltip } from "./RecipeTooltip";
 
 interface Props {
   groupedRecipes: Map<
@@ -20,26 +22,59 @@ interface Props {
       >
     >
   >;
+  findRecipeByName: Map<string, Recipe>;
+  inputProducts: string[];
+  currentRecipes: Recipe[];
 }
 export const RecipeSelection = (props: Props) => (
   <Table
+    pagination={{ pageSize: 5 }}
     columns={[
-      { dataIndex: "product" },
+      { dataIndex: "product", title: "Intermediate products", width: 250 },
       {
         dataIndex: "recipes",
-        render: (x: { recipe: Recipe; selected: boolean }[], record: any) => (
+        title: "Available recipes",
+        render: (
+          rowRecipes: { recipe: Recipe; selected: boolean }[],
+          record
+        ) => (
           <Checkbox.Group
-            options={x.map((y) => ({
-              label: y.recipe.recipeName,
-              value: y.recipe.recipeName,
-            }))}
-            value={x.filter((y) => y.selected).map((y) => y.recipe.recipeName)}
+            options={rowRecipes.map((rowRecipe) => {
+              const recipes = props.currentRecipes.filter(
+                (currentRecipe) =>
+                  !rowRecipes.some(
+                    (x) =>
+                      x.recipe.recipeName !== rowRecipe.recipe.recipeName &&
+                      x.recipe.recipeName === currentRecipe.recipeName
+                  )
+              );
+              rowRecipes.map((x) => x.recipe);
+              const recipe = props.findRecipeByName.get(
+                rowRecipe.recipe.recipeName
+              )!;
+              return {
+                label: (
+                  <Space>
+                    <RecipeTooltip recipe={recipe} />
+                    <DetailedRecipeTooltip
+                      recipe={recipe}
+                      inputProducts={props.inputProducts}
+                      currentRecipes={recipes}
+                    />
+                  </Space>
+                ),
+                value: rowRecipe.recipe.recipeName,
+              };
+            })}
+            value={rowRecipes
+              .filter((y) => y.selected)
+              .map((y) => y.recipe.recipeName)}
             onChange={(newSelected) =>
               props.setGroupedRecipes((old) => {
                 const newGrouped = new Map(old);
                 newGrouped.set(
                   record.product,
-                  x.map((y) => ({
+                  rowRecipes.map((y) => ({
                     ...y,
                     selected: newSelected.includes(y.recipe.recipeName),
                   }))
@@ -51,10 +86,12 @@ export const RecipeSelection = (props: Props) => (
         ),
       },
     ]}
-    dataSource={Array.from(props.groupedRecipes).map((x, i) => ({
-      key: i,
-      product: x[0],
-      recipes: x[1],
-    }))}
+    dataSource={Array.from(props.groupedRecipes)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map((x, i) => ({
+        key: i,
+        product: x[0],
+        recipes: x[1],
+      }))}
   />
 );
