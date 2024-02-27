@@ -2,6 +2,7 @@ import { Checkbox, Space, Table } from "antd";
 import { Recipe } from "./App";
 import { DetailedRecipeTooltip } from "./DetailedRecipeTooltip";
 import { RecipeTooltip } from "./RecipeTooltip";
+import { productDisplayNameMapping } from "./getProductDisplayNames";
 
 interface Props {
   groupedRecipes: Map<
@@ -87,11 +88,11 @@ export const RecipeSelection = (props: Props) => (
       },
     ]}
     dataSource={Array.from(props.groupedRecipes)
-      .sort((a, b) => a[0].localeCompare(b[0]))
       .map((x, i) => ({
         key: i,
-        product: x[0],
+        product: productDisplayNameMapping.get(x[0])!,
         recipes: x[1],
-      }))}
+      }))
+      .sort((a, b) => a.product.localeCompare(b.product))}
   />
 );

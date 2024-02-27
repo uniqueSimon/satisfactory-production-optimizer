@@ -1,23 +1,5 @@
 import { Recipe } from "./App";
 
-const notWantedRecipes = [
-  "Alternate_RecycledRubber",
-  "Alternate_Plastic_1",
-  "ResidualPlastic",
-  "PetroleumCoke",
-];
-const notWantedProducts = [
-  "GenericBiomass",
-  "Wood",
-  "NitrogenGas",
-  "NuclearWaste",
-  "AluminumScrap",
-  "AluminaSolution",
-  "AluminumIngot",
-  "AluminumCasing",
-  "OreUranium",
-];
-
 export const findAllRelatedRecipesAndProducts = (
   product: string,
   recipes: Recipe[]
@@ -31,9 +13,7 @@ export const findAllRelatedRecipesAndProducts = (
     }
     const viableRecipes = recipes.filter(
       (x) =>
-        x.productName === product &&
-        x.ingredients.every((x) => !notWantedProducts.includes(x.name)) &&
-        !notWantedRecipes.includes(x.recipeName)
+        x.productName === product
     );
     if (viableRecipes.length === 0) {
       usedResources.add(product);

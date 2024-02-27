@@ -6,24 +6,6 @@ export interface RecipeVariant {
   usedRecipes: Set<string>;
 }
 
-const notWantedRecipes = [
-  "Alternate_RecycledRubber",
-  "Alternate_Plastic_1",
-  "ResidualPlastic",
-  "PetroleumCoke",
-];
-const notWantedProducts = [
-  "GenericBiomass",
-  "Wood",
-  "NitrogenGas",
-  "NuclearWaste",
-  "AluminumScrap",
-  "AluminaSolution",
-  "AluminumIngot",
-  "AluminumCasing",
-  "OreUranium",
-];
-
 //should go through recipe tree and find all potential recipes and products
 export const recipeTreeSearch = (
   outputProduct: string,
@@ -45,9 +27,7 @@ export const recipeTreeSearch = (
     }
     const viableRecipes = recipes.filter(
       (x) =>
-        x.productName === product &&
-        x.ingredients.every((x) => !notWantedProducts.includes(x.name)) &&
-        !notWantedRecipes.includes(x.recipeName)
+        x.productName === product
     );
     if (viableRecipes.length === 0) {
       return null;

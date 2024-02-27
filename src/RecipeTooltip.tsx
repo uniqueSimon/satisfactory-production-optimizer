@@ -1,13 +1,14 @@
 import { Tooltip } from "antd";
 import { Recipe } from "./App";
+import { productDisplayNameMapping } from "./getProductDisplayNames";
 
 export const RecipeTooltip = (props: { recipe: Recipe }) => {
   const ingredientString = props.recipe.ingredients
     .map(
       (x) =>
-        `${Math.floor((x.amount / props.recipe.productAmount) * 100) / 100} ${
-          x.name
-        }`
+        `${
+          Math.floor((x.amount / props.recipe.productAmount) * 100) / 100
+        } ${productDisplayNameMapping.get(x.name)}`
     )
     .join(" + ");
   return (
@@ -16,9 +17,11 @@ export const RecipeTooltip = (props: { recipe: Recipe }) => {
         whiteSpace: "nowrap",
         maxWidth: "none",
       }}
-      title={`${ingredientString} -> ${props.recipe.productName}`}
+      title={`${ingredientString} -> ${productDisplayNameMapping.get(
+        props.recipe.productName
+      )}, ${props.recipe.recipeName}`}
     >
-      {props.recipe.recipeName}
+      {props.recipe.displayName}
     </Tooltip>
   );
 };

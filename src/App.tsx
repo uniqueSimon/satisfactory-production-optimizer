@@ -1,6 +1,5 @@
 import { getRecipesFromConfig } from "./getRecipesFromConfig";
 import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
-import relevantProducts from "./relevantProducts.json";
 import {
   Button,
   Col,
@@ -20,9 +19,11 @@ import { RecipeSelection } from "./RecipeSelection";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { narrowDownRecipes } from "./narrowDownRecipes";
 import "./styles.css";
+import { productDisplayNameMapping } from "./getProductDisplayNames";
 
 export interface Recipe {
   recipeName: string;
+  displayName: string;
   productName: string;
   productAmount: number;
   ingredients: { name: string; amount: number }[];
@@ -55,16 +56,25 @@ for (const recipe of allRecipes) {
   findRecipeByName.set(recipe.recipeName, recipe);
 }
 
+const allProducts = new Set<string>();
+for (const recipe of allRecipes) {
+  allProducts.add(recipe.productName);
+}
+
 export const App = () => {
   const [productToProduce, setProductToProduce] = useState(
     "IronPlateReinforced"
   );
   const [wantedOutputRate, setWantedOutputRate] = useState(1);
-  const [excludedRecipes, setExcludedRecipes] = useState([
+  const [excludedRecipes, setExcludedRecipes] = useState<string[]>([
     "Screw", //same as Alternate_Screw, no IronRod
     "Alternate_ReinforcedIronPlate_1", //worse than IronPlateReinforced, same Ingredients
     "IngotSteel", //worse than Alternate_IngotSteel_1, same Ingredients
     //"IronPlateReinforced",
+    "Alternate_Coal_1", //requires wood
+    "Alternate_Coal_2", //requires biomass
+    "Alternate_Plastic_1", //to avoid loop
+    "Alternate_RecycledRubber", //to avoid loop
   ]);
   const [
     onlyOneVariantPerResourceTypes,
@@ -125,13 +135,17 @@ export const App = () => {
               tooltip={{ title: "Select a product to produce" }}
             >
               <Select
-                options={relevantProducts.map((x) => ({
+                showSearch={true}
+                options={[...allProducts].map((x) => ({
                   key: x,
                   value: x,
-                  label: x,
+                  label: productDisplayNameMapping.get(x)!,
                 }))}
                 value={productToProduce}
-                onChange={(x) => setProductToProduce(x)}
+                onChange={setProductToProduce}
+                filterOption={(input, option) =>
+                  option!.label.toLowerCase().includes(input.toLowerCase())
+                }
               />
             </Form.Item>
           </Col>
@@ -139,7 +153,7 @@ export const App = () => {
             <Form.Item label="Output rate (1/min)">
               <InputNumber
                 value={wantedOutputRate}
-                onChange={(x) => setWantedOutputRate(x!)}
+                onChange={(x) => setWantedOutputRate(x ?? 0)}
               />
             </Form.Item>
           </Col>
@@ -151,7 +165,7 @@ export const App = () => {
                 options={allRecipes.map((x) => ({
                   key: x.recipeName,
                   value: x.recipeName,
-                  label: x.recipeName,
+                  label: x.displayName,
                 }))}
                 value={excludedRecipes}
                 onChange={(x) => setExcludedRecipes(x)}
@@ -178,7 +192,7 @@ export const App = () => {
                 ].map((x) => ({
                   key: x,
                   value: x,
-                  label: x,
+                  label: productDisplayNameMapping.get(x),
                 }))}
                 value={currentResources}
                 onChange={updateResourcesAndRecipes}

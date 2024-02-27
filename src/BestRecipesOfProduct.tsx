@@ -3,6 +3,7 @@ import { RecipeVariant } from "./recipeTreeSearch";
 import { SelectOutlined } from "@ant-design/icons";
 import { Recipe } from "./App";
 import { RecipeTooltip } from "./RecipeTooltip";
+import { productDisplayNameMapping } from "./getProductDisplayNames";
 
 export const BestRecipesOfProducts = (props: {
   productToProduce: string;
@@ -54,7 +55,7 @@ export const BestRecipesOfProducts = (props: {
           render: (x: Map<string, number>) => {
             return [...x.entries()].map(([name, rate]) => (
               <Row key={name} justify={"space-between"}>
-                <Col>{name}</Col>
+                <Col>{productDisplayNameMapping.get(name)}</Col>
                 <Col>{Math.round(rate * 100) / 100}</Col>
               </Row>
             ));
