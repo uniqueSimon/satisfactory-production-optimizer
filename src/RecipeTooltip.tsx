@@ -19,7 +19,7 @@ export const RecipeTooltip = (props: { recipe: Recipe }) => {
       }}
       title={`${ingredientString} -> ${productDisplayNameMapping.get(
         props.recipe.productName
-      )}, ${props.recipe.recipeName}`}
+      )}`}
     >
       {props.recipe.displayName}
     </Tooltip>

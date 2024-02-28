@@ -3,7 +3,7 @@ import { Recipe } from "./App";
 export interface RecipeVariant {
   resourceTypes: Set<string>;
   resources: Map<string, number>;
-  usedRecipes: Set<string>;
+  usedRecipes: Map<string, number>;
 }
 
 //should go through recipe tree and find all potential recipes and products
@@ -21,14 +21,11 @@ export const recipeTreeSearch = (
         {
           resourceTypes: new Set([product]),
           resources: new Map([[product, 1]]),
-          usedRecipes: new Set(),
+          usedRecipes: new Map(),
         },
       ];
     }
-    const viableRecipes = recipes.filter(
-      (x) =>
-        x.productName === product
-    );
+    const viableRecipes = recipes.filter((x) => x.productName === product);
     if (viableRecipes.length === 0) {
       return null;
     }
@@ -37,17 +34,22 @@ export const recipeTreeSearch = (
       const concatenatedIngredients: RecipeVariant[][] = [];
       let ingredientCannotBeProduced = false;
       for (const ingredient of recipe.ingredients) {
-        const ingredienteRate = ingredient.amount / recipe.productAmount;
+        const ingredienteRateMultiplier =
+          ingredient.amount / recipe.productAmount;
         const ingredientResultNormalized = recursion(ingredient.name);
         if (ingredientResultNormalized) {
           const ingredientResult = ingredientResultNormalized.map((y) => {
             const resources = new Map<string, number>();
             y.resources.forEach((rate, resource) => {
-              resources.set(resource, rate * ingredienteRate);
+              resources.set(resource, rate * ingredienteRateMultiplier);
+            });
+            const usedRecipes = new Map<string, number>();
+            y.usedRecipes.forEach((number, recipe) => {
+              usedRecipes.set(recipe, number * ingredienteRateMultiplier);
             });
             return {
               resourceTypes: y.resourceTypes,
-              usedRecipes: y.usedRecipes,
+              usedRecipes,
               resources,
             };
           });
@@ -67,7 +69,7 @@ export const recipeTreeSearch = (
         const recipeVariant = calculateRecipeVariant(
           concatenatedIngredients,
           combination,
-          recipe.recipeName
+          recipe
         );
         recipeVariants.push(recipeVariant);
       }
@@ -81,6 +83,7 @@ export const recipeTreeSearch = (
     }
     return recipeVariants;
   };
+
   const recipeVariantsNormalized = recursion(outputProduct);
   const recipeVariants = recipeVariantsNormalized
     ? recipeVariantsNormalized.map((y) => {
@@ -88,9 +91,13 @@ export const recipeTreeSearch = (
         y.resources.forEach((rate, resource) => {
           resources.set(resource, rate * wantedOutputRate);
         });
+        const usedRecipes = new Map<string, number>();
+        y.usedRecipes.forEach((number, recipe) => {
+          usedRecipes.set(recipe, number * wantedOutputRate);
+        });
         return {
           resourceTypes: y.resourceTypes,
-          usedRecipes: y.usedRecipes,
+          usedRecipes,
           resources,
         };
       })
@@ -118,22 +125,27 @@ const generateCombinations = (lastCombination: number[]) => {
 const calculateRecipeVariant = (
   ingredients: RecipeVariant[][],
   combination: number[],
-  recipeName: string
+  recipe: Recipe
 ): RecipeVariant => {
   const resources = new Map<string, number>();
-  const usedRecipes = new Set<string>();
+  const usedRecipes = new Map<string, number>();
   const resourceTypes = new Set<string>();
   for (const ingredientIndex in combination) {
     const variant = combination[ingredientIndex];
     const ingredientVariant = ingredients[ingredientIndex][variant];
-    ingredientVariant.usedRecipes.forEach((x) => usedRecipes.add(x));
-    usedRecipes.add(recipeName);
+    ingredientVariant.usedRecipes.forEach((number, recipeName) => {
+      const existing = usedRecipes.get(recipeName);
+      usedRecipes.set(recipeName, (existing ?? 0) + number);
+    });
     ingredientVariant.resources.forEach((rate, resource) => {
       const oldRate = resources.get(resource);
       resources.set(resource, (oldRate ?? 0) + rate);
     });
     ingredientVariant.resourceTypes.forEach((x) => resourceTypes.add(x));
   }
+  const existing = usedRecipes.get(recipe.recipeName);
+  const productionRate = (recipe.productAmount / recipe.time) * 60;
+  usedRecipes.set(recipe.recipeName, (existing ?? 0) + 1 / productionRate);
   return { resources, usedRecipes, resourceTypes };
 };
 

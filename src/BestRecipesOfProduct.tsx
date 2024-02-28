@@ -1,4 +1,4 @@
-import { Button, Col, Divider, Row, Table } from "antd";
+import { Button, Col, Row, Table } from "antd";
 import { RecipeVariant } from "./recipeTreeSearch";
 import { SelectOutlined } from "@ant-design/icons";
 import { Recipe } from "./App";
@@ -26,9 +26,7 @@ export const BestRecipesOfProducts = (props: {
     })
     .map((x, i) => ({
       key: i,
-      resourceTypes: x.resourceTypes,
-      resources: x.resources,
-      usedRecipes: [...x.usedRecipes],
+      ...x,
     }));
   return (
     <Table
@@ -65,21 +63,26 @@ export const BestRecipesOfProducts = (props: {
           dataIndex: "usedRecipes",
           title: "Used Recipes",
           width: 500,
-          render: (x: string[]) => {
-            return (
-              <Row gutter={6}>
-                {x.map((x) => {
-                  const recipe = props.findRecipeByName.get(x)!;
-                  return (
-                    <Col key={x}>
-                      <RecipeTooltip recipe={recipe} />
-                      <Divider type="vertical" />
-                    </Col>
-                  );
-                })}
-              </Row>
-            );
-          },
+          render: (x: Map<string, number>) =>
+            Array.from(x).map(([name, number]) => {
+              const recipe = props.findRecipeByName.get(name)!;
+              return (
+                <Row key={name} justify={"space-between"}>
+                  <Col>
+                    <RecipeTooltip recipe={recipe} />
+                  </Col>
+                  <Col>{Math.floor(number * 100) / 100}</Col>
+                </Row>
+              );
+            }),
+        },
+        {
+          dataIndex: "totalProductionUnits",
+          title: "Total Production Units",
+          render: (_, record) =>
+            Math.floor(
+              [...record.usedRecipes.values()].reduce((a, b) => a + b, 0) * 100
+            ) / 100,
         },
         {
           dataIndex: "linkToCalculator",
@@ -87,7 +90,9 @@ export const BestRecipesOfProducts = (props: {
           render: (_, record) => {
             const baseLink =
               "https://satisfactory-calculator.com/en/planners/production/index/json/";
-            const altRecipes = record.usedRecipes.map((x) => `Recipe_${x}_C`);
+            const altRecipes = [...record.usedRecipes.keys()].map(
+              (x) => `Recipe_${x}_C`
+            );
             const obj = {
               [`Desc_${props.productToProduce}_C`]:
                 props.wantedOutputRate.toString(),
