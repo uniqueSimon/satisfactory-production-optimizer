@@ -1,4 +1,4 @@
-import { Button, Col, Row, Table } from "antd";
+import { Button, Col, Row, Table, Tooltip } from "antd";
 import { RecipeVariant } from "./recipeTreeSearch";
 import { SelectOutlined } from "@ant-design/icons";
 import { Recipe } from "./App";
@@ -66,12 +66,15 @@ export const BestRecipesOfProducts = (props: {
           render: (x: Map<string, number>) =>
             Array.from(x).map(([name, number]) => {
               const recipe = props.findRecipeByName.get(name)!;
+              const rounded = Math.round(number * 100) / 100;
               return (
                 <Row key={name} justify={"space-between"}>
                   <Col>
                     <RecipeTooltip recipe={recipe} />
                   </Col>
-                  <Col>{Math.floor(number * 100) / 100}</Col>
+                  <Tooltip title={rounded === number ? "" : number}>
+                    <Col>{rounded}</Col>
+                  </Tooltip>
                 </Row>
               );
             }),

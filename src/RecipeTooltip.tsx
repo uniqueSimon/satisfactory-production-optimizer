@@ -4,12 +4,10 @@ import { productDisplayNameMapping } from "./getProductDisplayNames";
 
 export const RecipeTooltip = (props: { recipe: Recipe }) => {
   const ingredientString = props.recipe.ingredients
-    .map(
-      (x) =>
-        `${
-          Math.floor((x.amount / props.recipe.productAmount) * 100) / 100
-        } ${productDisplayNameMapping.get(x.name)}`
-    )
+    .map((x) => makeProductAmountString(x))
+    .join(" + ");
+  const productsString = props.recipe.products
+    .map((product) => makeProductAmountString(product))
     .join(" + ");
   return (
     <Tooltip
@@ -17,11 +15,12 @@ export const RecipeTooltip = (props: { recipe: Recipe }) => {
         whiteSpace: "nowrap",
         maxWidth: "none",
       }}
-      title={`${ingredientString} -> ${productDisplayNameMapping.get(
-        props.recipe.productName
-      )}`}
+      title={`${ingredientString} -> ${productsString}`}
     >
       {props.recipe.displayName}
     </Tooltip>
   );
 };
+
+const makeProductAmountString = (product: { name: string; amount: number }) =>
+  `${product.amount} ${productDisplayNameMapping.get(product.name)}`;

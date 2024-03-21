@@ -1,5 +1,4 @@
-import { getRecipesFromConfig } from "./getRecipesFromConfig";
-import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
+import { useEffect, useState } from "react";
 import {
   Button,
   Col,
@@ -12,23 +11,52 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { useEffect, useState } from "react";
+import { ExclamationCircleOutlined } from "@ant-design/icons";
+import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
 import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
 import { recipeTreeSearch } from "./recipeTreeSearch";
 import { RecipeSelection } from "./RecipeSelection";
-import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { narrowDownRecipes } from "./narrowDownRecipes";
-import "./styles.css";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
+import { allRecipes } from "./allRecipesFromConfig";
+import "./styles.css";
+import { TreeBuilder } from "./TreeBuilder";
+import { buildTree } from "./buildTree";
 
 export interface Recipe {
   recipeName: string;
   displayName: string;
-  productName: string;
-  productAmount: number;
+  products: { name: string; amount: number }[];
   ingredients: { name: string; amount: number }[];
   time: number;
 }
+export interface Tree {
+  recipeName: string;
+  numberOfMachines: number;
+  weightedPoints?: number;
+  ingredients: {
+    product: string;
+    rate: number;
+    ingredientTree: Tree[];
+  }[];
+}
+const defaultExcludedRecipes = [
+  "Screw", //same as Alternate_Screw, no IronRod
+  "Alternate_ReinforcedIronPlate_1", //worse than IronPlateReinforced, same Ingredients
+  "IngotSteel", //worse than Alternate_IngotSteel_1, same Ingredients
+  //"IronPlateReinforced",
+  "Alternate_Coal_1", //requires wood
+  "Alternate_Coal_2", //requires biomass
+  "Alternate_Plastic_1", //to avoid loop
+  "Alternate_RecycledRubber", //to avoid loop
+  "Plastic",
+  "Rubber",
+  "ResidualPlastic",
+  "ResidualRubber",
+  "LiquidFuel",
+  "Alternate_PolymerResin",
+  //"Alternate_HeavyOilResidue",
+];
 
 const groupRecipesByProduct = (
   recipes: Recipe[],
@@ -36,29 +64,28 @@ const groupRecipesByProduct = (
 ) => {
   const grouped = new Map<string, { recipe: Recipe; selected: boolean }[]>();
   for (const recipe of recipes) {
-    const entry = grouped.get(recipe.productName);
-    const oldEntry = oldSelection.get(recipe.productName);
+    const productName = recipe.products[0].name;
+    const entry = grouped.get(productName);
+    const oldEntry = oldSelection.get(productName);
     const selected =
       oldEntry?.find((x) => x.recipe === recipe)?.selected ?? true;
     if (entry) {
       entry.push({ recipe, selected });
     } else {
-      grouped.set(recipe.productName, [{ recipe, selected }]);
+      grouped.set(productName, [{ recipe, selected }]);
     }
   }
   return grouped;
 };
 
-const allRecipes = getRecipesFromConfig();
-
-const findRecipeByName = new Map<string, Recipe>();
+export const findRecipeByName = new Map<string, Recipe>();
 for (const recipe of allRecipes) {
   findRecipeByName.set(recipe.recipeName, recipe);
 }
 
 const allProducts = new Set<string>();
 for (const recipe of allRecipes) {
-  allProducts.add(recipe.productName);
+  allProducts.add(recipe.products[0].name);
 }
 
 export const App = () => {
@@ -66,16 +93,9 @@ export const App = () => {
     "IronPlateReinforced"
   );
   const [wantedOutputRate, setWantedOutputRate] = useState(1);
-  const [excludedRecipes, setExcludedRecipes] = useState<string[]>([
-    "Screw", //same as Alternate_Screw, no IronRod
-    "Alternate_ReinforcedIronPlate_1", //worse than IronPlateReinforced, same Ingredients
-    "IngotSteel", //worse than Alternate_IngotSteel_1, same Ingredients
-    //"IronPlateReinforced",
-    "Alternate_Coal_1", //requires wood
-    "Alternate_Coal_2", //requires biomass
-    "Alternate_Plastic_1", //to avoid loop
-    "Alternate_RecycledRubber", //to avoid loop
-  ]);
+  const [excludedRecipes, setExcludedRecipes] = useState(
+    defaultExcludedRecipes
+  );
   const [
     onlyOneVariantPerResourceTypes,
     setShowOnlyOneVariantPerResourceTypes,
@@ -107,7 +127,7 @@ export const App = () => {
     .flat()
     .filter((x) => x.selected)
     .map((x) => x.recipe);
-  const { recipeVariants, tooManyVariants } = recipeTreeSearch(
+  const recipeVariants = recipeTreeSearch(
     productToProduce,
     currentResources,
     currentRecipes,
@@ -123,7 +143,6 @@ export const App = () => {
     );
     setGroupedRecipes((old) => groupRecipesByProduct(narrowedDownRecipes, old));
   };
-
   return (
     <div className="page-container">
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
@@ -207,13 +226,16 @@ export const App = () => {
           inputProducts={currentResources}
           currentRecipes={currentRecipes}
         />
+        <TreeBuilder
+          tree={buildTree(productToProduce, wantedOutputRate, currentRecipes)}
+        />
         <Form.Item label="Show only one variant per resource types">
           <Space>
             <Switch
               value={onlyOneVariantPerResourceTypes}
               onChange={(x) => setShowOnlyOneVariantPerResourceTypes(x)}
             />
-            {tooManyVariants && (
+            {recipeVariants.length >= 100 && (
               <Tooltip title="There are too many variants! Not all variants could be calculated!">
                 <ExclamationCircleOutlined
                   style={{ fontSize: "30px", color: "red" }}

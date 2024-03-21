@@ -14,8 +14,7 @@ export const recipeTreeSearch = (
   onlyOneVariantPerResourceTypes: boolean,
   wantedOutputRate: number
 ) => {
-  let tooManyVariants = false;
-  const recursion = (product: string): RecipeVariant[] | null => {
+  const recursion = (product: string): RecipeVariant[] => {
     if (inputProducts.includes(product)) {
       return [
         {
@@ -25,43 +24,59 @@ export const recipeTreeSearch = (
         },
       ];
     }
-    const viableRecipes = recipes.filter((x) => x.productName === product);
-    if (viableRecipes.length === 0) {
-      return null;
+    const viableRecipes = recipes.filter((x) => x.products[0].name === product);
+    const recipeVariants: RecipeVariant[] = getRecipeVariants(
+      viableRecipes,
+      recursion
+    );
+    return onlyOneVariantPerResourceTypes
+      ? filterOutInefficientVariants(recipeVariants).slice(0, 50)
+      : recipeVariants.slice(0, 100);
+  };
+  const recipeVariantsNormalized = recursion(outputProduct);
+  const recipeVariants = scaleRecipeVariants(
+    recipeVariantsNormalized,
+    wantedOutputRate
+  );
+  replaceUsedRecipes(recipeVariants);
+  return recipeVariants;
+};
+
+const replaceUsedRecipes = (recipeVariants: RecipeVariant[]) => {
+  recipeVariants.map((recipeVariant) => {
+    const usedRecipes = recipeVariant.usedRecipes;
+    const efficientPlastic = usedRecipes.get("EfficientPlastic");
+    if (efficientPlastic) {
+      usedRecipes.set("Alternate_Plastic_1", efficientPlastic * 1.26);
+      usedRecipes.set("Alternate_RecycledRubber", efficientPlastic * 0.52);
+      usedRecipes.set("ResidualRubber", efficientPlastic * 0.33);
+      usedRecipes.set("Alternate_DilutedFuel", efficientPlastic * 0.53);
+      usedRecipes.set("Alternate_HeavyOilResidue", efficientPlastic * 0.67);
+      usedRecipes.delete("EfficientPlastic");
     }
-    const recipeVariants: RecipeVariant[] = [];
-    for (const recipe of viableRecipes) {
-      const concatenatedIngredients: RecipeVariant[][] = [];
-      let ingredientCannotBeProduced = false;
-      for (const ingredient of recipe.ingredients) {
-        const ingredienteRateMultiplier =
-          ingredient.amount / recipe.productAmount;
-        const ingredientResultNormalized = recursion(ingredient.name);
-        if (ingredientResultNormalized) {
-          const ingredientResult = ingredientResultNormalized.map((y) => {
-            const resources = new Map<string, number>();
-            y.resources.forEach((rate, resource) => {
-              resources.set(resource, rate * ingredienteRateMultiplier);
-            });
-            const usedRecipes = new Map<string, number>();
-            y.usedRecipes.forEach((number, recipe) => {
-              usedRecipes.set(recipe, number * ingredienteRateMultiplier);
-            });
-            return {
-              resourceTypes: y.resourceTypes,
-              usedRecipes,
-              resources,
-            };
-          });
-          concatenatedIngredients.push(ingredientResult);
-        } else {
-          ingredientCannotBeProduced = true;
-          break;
-        }
-      }
-      if (ingredientCannotBeProduced) {
-        continue;
-      }
+    const efficientRubber = usedRecipes.get("EfficientRubber");
+    if (efficientRubber) {
+      usedRecipes.set("Alternate_Plastic_1", efficientRubber * 0.59);
+      usedRecipes.set("Alternate_RecycledRubber", efficientRubber * 1.19);
+      usedRecipes.set("ResidualRubber", efficientRubber * 0.33);
+      usedRecipes.set("Alternate_DilutedFuel", efficientRubber * 0.53);
+      usedRecipes.set("Alternate_HeavyOilResidue", efficientRubber * 0.67);
+      usedRecipes.delete("EfficientPlastic");
+    }
+  });
+};
+
+const getRecipeVariants = (
+  viableRecipes: Recipe[],
+  getIngredientVariants: (product: string) => RecipeVariant[]
+) => {
+  const recipeVariants: RecipeVariant[] = [];
+  for (const recipe of viableRecipes) {
+    const concatenatedIngredients = getConcatedIngredients(
+      recipe,
+      getIngredientVariants
+    );
+    if (concatenatedIngredients) {
       const combinations = generateCombinations(
         concatenatedIngredients.map((x) => x.length)
       );
@@ -74,35 +89,50 @@ export const recipeTreeSearch = (
         recipeVariants.push(recipeVariant);
       }
     }
-    if (!onlyOneVariantPerResourceTypes && recipeVariants.length > 100) {
-      tooManyVariants = true;
-      return recipeVariants.slice(0, 100);
-    }
-    if (onlyOneVariantPerResourceTypes) {
-      return filterOutInefficientVariants(recipeVariants);
-    }
-    return recipeVariants;
-  };
+  }
+  return recipeVariants;
+};
 
-  const recipeVariantsNormalized = recursion(outputProduct);
-  const recipeVariants = recipeVariantsNormalized
-    ? recipeVariantsNormalized.map((y) => {
-        const resources = new Map<string, number>();
-        y.resources.forEach((rate, resource) => {
-          resources.set(resource, rate * wantedOutputRate);
-        });
-        const usedRecipes = new Map<string, number>();
-        y.usedRecipes.forEach((number, recipe) => {
-          usedRecipes.set(recipe, number * wantedOutputRate);
-        });
-        return {
-          resourceTypes: y.resourceTypes,
-          usedRecipes,
-          resources,
-        };
-      })
-    : [];
-  return { recipeVariants, tooManyVariants };
+const getConcatedIngredients = (
+  recipe: Recipe,
+  getIngredientVariants: (product: string) => RecipeVariant[]
+) => {
+  const concatenatedIngredients: RecipeVariant[][] = [];
+  for (const ingredient of recipe.ingredients) {
+    const scalingFactor = ingredient.amount / recipe.products[0].amount;
+    const ingredientResultNormalized = getIngredientVariants(ingredient.name);
+    if (!ingredientResultNormalized.length) {
+      return null;
+    }
+    const ingredientResult = scaleRecipeVariants(
+      ingredientResultNormalized,
+      scalingFactor
+    );
+    concatenatedIngredients.push(ingredientResult);
+  }
+  return concatenatedIngredients;
+};
+
+const scaleRecipeVariants = (
+  normalized: RecipeVariant[],
+  scalingFactor: number
+): RecipeVariant[] => {
+  const ret = normalized.map((y) => {
+    const resources = new Map<string, number>();
+    y.resources.forEach((rate, resource) => {
+      resources.set(resource, rate * scalingFactor);
+    });
+    const usedRecipes = new Map<string, number>();
+    y.usedRecipes.forEach((number, recipe) => {
+      usedRecipes.set(recipe, number * scalingFactor);
+    });
+    return {
+      resourceTypes: y.resourceTypes,
+      usedRecipes,
+      resources,
+    };
+  });
+  return ret;
 };
 
 const generateCombinations = (lastCombination: number[]) => {
@@ -144,7 +174,7 @@ const calculateRecipeVariant = (
     ingredientVariant.resourceTypes.forEach((x) => resourceTypes.add(x));
   }
   const existing = usedRecipes.get(recipe.recipeName);
-  const productionRate = (recipe.productAmount / recipe.time) * 60;
+  const productionRate = (recipe.products[0].amount / recipe.time) * 60;
   usedRecipes.set(recipe.recipeName, (existing ?? 0) + 1 / productionRate);
   return { resources, usedRecipes, resourceTypes };
 };

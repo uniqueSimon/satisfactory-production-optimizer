@@ -16,8 +16,8 @@ export const DetailedRecipeTooltip = (props: {
 }) => {
   const [cachedVariants, setCachedVariants] = useState<RecipeVariant[]>([]);
   const triggerCalculation = () => {
-    const { recipeVariants } = recipeTreeSearch(
-      props.recipe.productName,
+    const recipeVariants = recipeTreeSearch(
+      props.recipe.products[0].name,
       props.inputProducts,
       props.currentRecipes,
       false,

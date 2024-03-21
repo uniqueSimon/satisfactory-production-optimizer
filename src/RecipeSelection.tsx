@@ -31,7 +31,12 @@ export const RecipeSelection = (props: Props) => (
   <Table
     pagination={{ pageSize: 5 }}
     columns={[
-      { dataIndex: "product", title: "Intermediate products", width: 250 },
+      {
+        dataIndex: "product",
+        title: "Intermediate products",
+        width: 250,
+        render: (product: string) => productDisplayNameMapping.get(product),
+      },
       {
         dataIndex: "recipes",
         title: "Available recipes",
@@ -49,7 +54,6 @@ export const RecipeSelection = (props: Props) => (
                       x.recipe.recipeName === currentRecipe.recipeName
                   )
               );
-              rowRecipes.map((x) => x.recipe);
               const recipe = props.findRecipeByName.get(
                 rowRecipe.recipe.recipeName
               )!;
@@ -88,11 +92,11 @@ export const RecipeSelection = (props: Props) => (
       },
     ]}
     dataSource={Array.from(props.groupedRecipes)
-      .map((x, i) => ({
-        key: i,
-        product: productDisplayNameMapping.get(x[0])!,
+      .map((x) => ({
+        key: x[0],
+        product: x[0],
         recipes: x[1],
       }))
-      .sort((a, b) => a.product.localeCompare(b.product))}
+      .sort((a, b) => a.product?.localeCompare(b.product) ?? 0)}
   />
 );

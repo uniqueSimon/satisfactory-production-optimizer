@@ -13,7 +13,7 @@ export const narrowDownRecipes = (
       return true;
     }
     let productCanBeProduced = false;
-    const viableRecipes = recipes.filter((x) => x.productName === product);
+    const viableRecipes = recipes.filter((x) => x.products[0].name === product);
     for (const recipe of viableRecipes) {
       let recipeIsValid = true;
       for (const ingredient of recipe.ingredients) {
