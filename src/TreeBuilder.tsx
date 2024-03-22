@@ -7,7 +7,17 @@ interface Props {
   tree: Tree[];
 }
 export const TreeBuilder = (props: Props) => {
-  const [selectedRecipe, setSelectedRecipe] = useState(0);
+  const weightedPoints = props.tree.map((x) =>
+    x.ingredients.reduce(
+      (acc, ingredient) => acc + ingredient.weightedPoints,
+      0
+    )
+  );
+  const minWeightedPoints = weightedPoints.reduce(
+    (acc, x, i) => (x < acc.value ? { index: i, value: x } : acc),
+    { index: -1, value: Infinity }
+  );
+  const [selectedRecipe, setSelectedRecipe] = useState(minWeightedPoints.index);
   if (props.tree.length === 0) {
     return null;
   }
@@ -21,7 +31,12 @@ export const TreeBuilder = (props: Props) => {
             <>
               <RoundedNumber number={props.tree[i].numberOfMachines} />
               {" x "}
-              {findRecipeByName.get(x.recipeName)!.displayName}
+              <b>
+                {findRecipeByName.get(x.recipeName)!.displayName}
+                {props.tree.length > 1 && "*"}
+              </b>
+              {" WP: "}
+              {Math.round(weightedPoints[i] * 100) / 100}
             </>
           ),
         }))}
@@ -32,10 +47,12 @@ export const TreeBuilder = (props: Props) => {
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         {props.tree[selectedRecipe]?.ingredients?.map((ingredientTree, i) => (
           <div key={i} style={{ width: "100%" }}>
-            {productDisplayNameMapping.get(ingredientTree.product)}
+            <b>{productDisplayNameMapping.get(ingredientTree.product)}</b>
             {" ("}
             <RoundedNumber number={ingredientTree.rate} />
             {" 1/min)"}
+            {" WP: "}
+            {Math.round(ingredientTree.weightedPoints * 100) / 100}
             <TreeBuilder
               key={ingredientTree.product}
               tree={ingredientTree.ingredientTree}

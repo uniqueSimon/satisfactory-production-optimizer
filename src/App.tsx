@@ -33,10 +33,10 @@ export interface Recipe {
 export interface Tree {
   recipeName: string;
   numberOfMachines: number;
-  weightedPoints?: number;
   ingredients: {
     product: string;
     rate: number;
+    weightedPoints: number;
     ingredientTree: Tree[];
   }[];
 }
@@ -143,6 +143,8 @@ export const App = () => {
     );
     setGroupedRecipes((old) => groupRecipesByProduct(narrowedDownRecipes, old));
   };
+  const tree = buildTree(productToProduce, wantedOutputRate, currentRecipes);
+  console.log(tree);
   return (
     <div className="page-container">
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
@@ -227,7 +229,8 @@ export const App = () => {
           currentRecipes={currentRecipes}
         />
         <TreeBuilder
-          tree={buildTree(productToProduce, wantedOutputRate, currentRecipes)}
+          key={JSON.stringify(tree.recipeTree)}
+          tree={tree.recipeTree}
         />
         <Form.Item label="Show only one variant per resource types">
           <Space>
