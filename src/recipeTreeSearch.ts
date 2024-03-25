@@ -24,7 +24,7 @@ export const recipeTreeSearch = (
         },
       ];
     }
-    const viableRecipes = recipes.filter((x) => x.products[0].name === product);
+    const viableRecipes = recipes.filter((x) => x.product.name === product);
     const recipeVariants: RecipeVariant[] = getRecipeVariants(
       viableRecipes,
       recursion
@@ -99,7 +99,10 @@ const getConcatedIngredients = (
 ) => {
   const concatenatedIngredients: RecipeVariant[][] = [];
   for (const ingredient of recipe.ingredients) {
-    const scalingFactor = ingredient.amount / recipe.products[0].amount;
+    if (ingredient.amount < 0) {
+      continue;
+    }
+    const scalingFactor = ingredient.amount / recipe.product.amount;
     const ingredientResultNormalized = getIngredientVariants(ingredient.name);
     if (!ingredientResultNormalized.length) {
       return null;
@@ -174,7 +177,7 @@ const calculateRecipeVariant = (
     ingredientVariant.resourceTypes.forEach((x) => resourceTypes.add(x));
   }
   const existing = usedRecipes.get(recipe.recipeName);
-  const productionRate = (recipe.products[0].amount / recipe.time) * 60;
+  const productionRate = (recipe.product.amount / recipe.time) * 60;
   usedRecipes.set(recipe.recipeName, (existing ?? 0) + 1 / productionRate);
   return { resources, usedRecipes, resourceTypes };
 };
@@ -200,5 +203,9 @@ const filterOutInefficientVariants = (recipeVariants: RecipeVariant[]) => {
       groupedByResourceTypes.set(key, recipeVariant);
     }
   }
-  return Array.from(groupedByResourceTypes.values());
+  const ret = Array.from(groupedByResourceTypes.values());
+  if (ret.length > 50) {
+    console.warn("Too many variants!!");
+  }
+  return ret;
 };

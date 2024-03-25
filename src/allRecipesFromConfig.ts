@@ -9,7 +9,12 @@ interface ItemClass {
   mManufactoringDuration: string;
   mDisplayName: string;
 }
-
+const defaultExcludedRecipes = [
+  "Alternate_Coal_1", //requires wood
+  "Alternate_Coal_2", //requires biomass
+  "Alternate_Plastic_1", //to avoid loop
+  "Alternate_RecycledRubber", //to avoid loop
+];
 const getProductAndAmount = (rawString: string) => {
   const prodMatching =
     /BlueprintGeneratedClass.*\.(?:Desc|BP)_(.*)_C"',Amount=(\d+)/.exec(
@@ -32,7 +37,15 @@ const getIngredients = (rawString: string) => {
 };
 
 const convertRateUnits = (productName: string, rate: number) => {
-  if (["LiquidOil", "Water", "HeavyOilResidue"].includes(productName)) {
+  if (
+    [
+      "LiquidOil",
+      "Water",
+      "HeavyOilResidue",
+      "LiquidFuel",
+      "AluminaSolution",
+    ].includes(productName)
+  ) {
     return rate / 1000;
   }
   return rate;
@@ -61,22 +74,53 @@ for (const item of recipeNativeClass!.Classes) {
       continue;
     }
     const splittedProducts = itemClass.mProduct.split("),(");
+
     const products = splittedProducts.map((product) =>
       getProductAndAmount(product)
     );
-    allRecipes.push({
-      recipeName,
-      displayName,
-      products,
-      ingredients,
-      time,
-    });
+    if (products.length === 2) {
+      allRecipes.push({
+        recipeName,
+        displayName: `${displayName} 1`,
+        product: products[0],
+        ingredients: [
+          ...ingredients,
+          { name: products[1].name, amount: -products[1].amount },
+        ],
+        time,
+      });
+      if (
+        products[1].name !== "Water" &&
+        !defaultExcludedRecipes.includes(recipeName)
+      ) {
+        allRecipes.push({
+          recipeName: `${recipeName}2`,
+          displayName: `${displayName} 2`,
+          product: products[1],
+          ingredients: [
+            ...ingredients,
+            { name: products[0].name, amount: -products[0].amount },
+          ],
+          time,
+        });
+      }
+    } else if (products.length === 1) {
+      allRecipes.push({
+        recipeName,
+        displayName,
+        product: products[0],
+        ingredients,
+        time,
+      });
+    } else {
+      console.warn("Error: Unknown product count", products);
+    }
   }
 }
 allRecipes.push({
   recipeName: "EfficientPlastic",
   displayName: "Efficient Plastic",
-  products: [{ name: "Plastic", amount: 9 }],
+  product: { name: "Plastic", amount: 9 },
   ingredients: [
     { name: "LiquidOil", amount: 3 },
     { name: "Water", amount: 10 },
@@ -86,7 +130,7 @@ allRecipes.push({
 allRecipes.push({
   recipeName: "EfficientRubber",
   displayName: "Efficient Rubber",
-  products: [{ name: "Rubber", amount: 9 }],
+  product: { name: "Rubber", amount: 9 },
   ingredients: [
     { name: "LiquidOil", amount: 3 },
     { name: "Water", amount: 10 },

@@ -9,19 +9,32 @@ enum WeightingFactor {
   OreCopper = 1 / 2.886,
   Sulfur = 1 / 0.684,
   OreGold = 1 / 1.104,
-  PolymerResin = WeightingFactor.LiquidOil / 3 / 2,
+  OreBauxite = 1 / 0.978,
+  RawQuartz = 1 / 1.05,
+  PolymerResin = (1 / 6) * WeightingFactor.LiquidOil,
+  HeavyOilResidue = (2 / 3) * WeightingFactor.LiquidOil,
+  LiquidFuel = (1 / 3) * WeightingFactor.LiquidOil,
+  Plastic = (1 / 3) * WeightingFactor.LiquidOil,
+  Rubber = (1 / 3) * WeightingFactor.LiquidOil,
+  Silica = (3 * WeightingFactor.RawQuartz + 5 * WeightingFactor.Stone) / 7,
+  AluminaSolution = (12 * WeightingFactor.OreBauxite -
+    5 * WeightingFactor.Silica) /
+    12,
 }
 
 export const buildTree = (product: string, rate: number, recipes: Recipe[]) => {
-  const viableRecipes = recipes.filter((x) => x.products[0].name === product);
+  const viableRecipes = recipes.filter((x) => x.product.name === product);
   if (!viableRecipes.length || rate < 0) {
-    const weightingFactor =
-      product in WeightingFactor
-        ? WeightingFactor[product as keyof typeof WeightingFactor]
-        : 100;
-    if (weightingFactor === 100) {
-      console.log(`No weight for ${product}`);
+    if (!(product in WeightingFactor) && recipes.length > 0) {
+      //Initially recipes is empty. Do not throw this warning in that case
+      console.warn(`No weight for ${product}`);
+      return {
+        recipeTree: [] as Tree[],
+        weightedPoints: rate,
+      };
     }
+    const weightingFactor =
+      WeightingFactor[product as keyof typeof WeightingFactor];
     return {
       recipeTree: [] as Tree[],
       weightedPoints: rate * weightingFactor,
@@ -31,13 +44,12 @@ export const buildTree = (product: string, rate: number, recipes: Recipe[]) => {
   const ret = viableRecipes.map((recipe) => {
     const recipeTree: Tree = {
       recipeName: recipe.recipeName,
-      numberOfMachines: rate / ((recipe.products[0].amount / recipe.time) * 60),
+      numberOfMachines: rate / ((recipe.product.amount / recipe.time) * 60),
       ingredients: [],
     };
     let summedWeightedPoints = 0;
     for (const ingredient of recipe.ingredients) {
-      const ingredientRate =
-        (ingredient.amount / recipe.products[0].amount) * rate;
+      const ingredientRate = (ingredient.amount / recipe.product.amount) * rate;
       const ingredientTree = buildTree(
         ingredient.name,
         ingredientRate,
@@ -50,22 +62,6 @@ export const buildTree = (product: string, rate: number, recipes: Recipe[]) => {
         weightedPoints: ingredientTree.weightedPoints,
       });
       summedWeightedPoints += ingredientTree.weightedPoints;
-    }
-    if (recipe.products[1]) {
-      const byProductRate =
-        -(recipe.products[1].amount / recipe.products[0].amount) * rate;
-      const byProductTree = buildTree(
-        recipe.products[1].name,
-        byProductRate,
-        recipes
-      );
-      recipeTree.ingredients.push({
-        product: recipe.products[1].name,
-        rate: byProductRate,
-        ingredientTree: byProductTree.recipeTree,
-        weightedPoints: byProductTree.weightedPoints,
-      });
-      summedWeightedPoints += byProductTree.weightedPoints;
     }
     if (summedWeightedPoints < minWeightedPoints) {
       minWeightedPoints = summedWeightedPoints;

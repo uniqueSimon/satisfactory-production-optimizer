@@ -15,7 +15,6 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
 import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
 import { recipeTreeSearch } from "./recipeTreeSearch";
-import { RecipeSelection } from "./RecipeSelection";
 import { narrowDownRecipes } from "./narrowDownRecipes";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
 import { allRecipes } from "./allRecipesFromConfig";
@@ -26,7 +25,7 @@ import { buildTree } from "./buildTree";
 export interface Recipe {
   recipeName: string;
   displayName: string;
-  products: { name: string; amount: number }[];
+  product: { name: string; amount: number };
   ingredients: { name: string; amount: number }[];
   time: number;
 }
@@ -49,34 +48,14 @@ const defaultExcludedRecipes = [
   "Alternate_Coal_2", //requires biomass
   "Alternate_Plastic_1", //to avoid loop
   "Alternate_RecycledRubber", //to avoid loop
-  "Plastic",
-  "Rubber",
-  "ResidualPlastic",
-  "ResidualRubber",
-  "LiquidFuel",
-  "Alternate_PolymerResin",
+  //"Plastic",
+  //"Rubber",
+  //"ResidualPlastic",
+  //"ResidualRubber",
+  //"LiquidFuel",
+  //"Alternate_PolymerResin",
   //"Alternate_HeavyOilResidue",
 ];
-
-const groupRecipesByProduct = (
-  recipes: Recipe[],
-  oldSelection: Map<string, { recipe: Recipe; selected: boolean }[]>
-) => {
-  const grouped = new Map<string, { recipe: Recipe; selected: boolean }[]>();
-  for (const recipe of recipes) {
-    const productName = recipe.products[0].name;
-    const entry = grouped.get(productName);
-    const oldEntry = oldSelection.get(productName);
-    const selected =
-      oldEntry?.find((x) => x.recipe === recipe)?.selected ?? true;
-    if (entry) {
-      entry.push({ recipe, selected });
-    } else {
-      grouped.set(productName, [{ recipe, selected }]);
-    }
-  }
-  return grouped;
-};
 
 export const findRecipeByName = new Map<string, Recipe>();
 for (const recipe of allRecipes) {
@@ -85,14 +64,14 @@ for (const recipe of allRecipes) {
 
 const allProducts = new Set<string>();
 for (const recipe of allRecipes) {
-  allProducts.add(recipe.products[0].name);
+  allProducts.add(recipe.product.name);
 }
 
 export const App = () => {
   const [productToProduce, setProductToProduce] = useState(
     "IronPlateReinforced"
   );
-  const [wantedOutputRate, setWantedOutputRate] = useState(1);
+  const [wantedOutputRate, setWantedOutputRate] = useState(60);
   const [excludedRecipes, setExcludedRecipes] = useState(
     defaultExcludedRecipes
   );
@@ -101,9 +80,7 @@ export const App = () => {
     setShowOnlyOneVariantPerResourceTypes,
   ] = useState(true);
   const [allRelevantRecipes, setAllRelevantRecipes] = useState<Recipe[]>([]);
-  const [groupedRecipes, setGroupedRecipes] = useState(
-    new Map<string, { recipe: Recipe; selected: boolean }[]>()
-  );
+  const [currentRecipes, setCurrentRecipes] = useState<Recipe[]>([]);
   const [resourcesToChooseFrom, setResourcesToChooseFrom] = useState<string[]>(
     []
   );
@@ -120,13 +97,9 @@ export const App = () => {
     setResourcesToChooseFrom(usedResources);
     setProductsToChooseFrom(usedProducts);
     setCurrentResources(usedResources);
-    setGroupedRecipes((old) => groupRecipesByProduct(usedRecipes, old));
+    setCurrentRecipes(usedRecipes);
     setAllRelevantRecipes(usedRecipes);
   }, [productToProduce, excludedRecipes]);
-  const currentRecipes = Array.from(groupedRecipes.values())
-    .flat()
-    .filter((x) => x.selected)
-    .map((x) => x.recipe);
   const recipeVariants = recipeTreeSearch(
     productToProduce,
     currentResources,
@@ -141,10 +114,10 @@ export const App = () => {
       allRelevantRecipes,
       resources
     );
-    setGroupedRecipes((old) => groupRecipesByProduct(narrowedDownRecipes, old));
+    setCurrentRecipes(narrowedDownRecipes);
   };
   const tree = buildTree(productToProduce, wantedOutputRate, currentRecipes);
-  console.log(tree);
+  console.log(tree.recipeTree)
   return (
     <div className="page-container">
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
@@ -221,13 +194,6 @@ export const App = () => {
             </Col>
           </Row>
         </Form.Item>
-        <RecipeSelection
-          groupedRecipes={groupedRecipes}
-          setGroupedRecipes={setGroupedRecipes}
-          findRecipeByName={findRecipeByName}
-          inputProducts={currentResources}
-          currentRecipes={currentRecipes}
-        />
         <TreeBuilder
           key={JSON.stringify(tree.recipeTree)}
           tree={tree.recipeTree}

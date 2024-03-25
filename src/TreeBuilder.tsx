@@ -46,7 +46,13 @@ export const TreeBuilder = (props: Props) => {
       />
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         {props.tree[selectedRecipe]?.ingredients?.map((ingredientTree, i) => (
-          <div key={i} style={{ width: "100%" }}>
+          <div
+            key={i}
+            style={{
+              width: "100%",
+              border: ingredientTree.rate < 0 ? "solid red" : undefined,
+            }}
+          >
             <b>{productDisplayNameMapping.get(ingredientTree.product)}</b>
             {" ("}
             <RoundedNumber number={ingredientTree.rate} />

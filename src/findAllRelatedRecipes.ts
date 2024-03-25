@@ -11,7 +11,7 @@ export const findAllRelatedRecipesAndProducts = (
     if (usedProducts.includes(product)) {
       return;
     }
-    const viableRecipes = recipes.filter((x) => x.products[0].name === product);
+    const viableRecipes = recipes.filter((x) => x.product.name === product);
     if (viableRecipes.length === 0) {
       usedResources.add(product);
     } else {

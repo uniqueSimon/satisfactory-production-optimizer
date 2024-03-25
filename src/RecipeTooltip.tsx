@@ -3,12 +3,13 @@ import { Recipe } from "./App";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
 
 export const RecipeTooltip = (props: { recipe: Recipe }) => {
+  if (!props.recipe) {
+    return "";
+  }
   const ingredientString = props.recipe.ingredients
     .map((x) => makeProductAmountString(x))
     .join(" + ");
-  const productsString = props.recipe.products
-    .map((product) => makeProductAmountString(product))
-    .join(" + ");
+  const productsString = `${props.recipe.product.amount} ${props.recipe.product.name}`;
   return (
     <Tooltip
       overlayStyle={{
