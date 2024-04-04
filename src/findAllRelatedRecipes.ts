@@ -7,15 +7,15 @@ export const findAllRelatedRecipesAndProducts = (
   const usedRecipes: Recipe[] = [];
   const usedProducts: string[] = [];
   const usedResources = new Set<string>();
-  const recursion = (product: string) => {
-    if (usedProducts.includes(product)) {
+  const recursion = (curProduct: string) => {
+    if (usedProducts.includes(curProduct)) {
       return;
     }
-    const viableRecipes = recipes.filter((x) => x.product.name === product);
+    const viableRecipes = recipes.filter((x) => x.product.name === curProduct);
     if (viableRecipes.length === 0) {
-      usedResources.add(product);
+      usedResources.add(curProduct);
     } else {
-      usedProducts.push(product);
+      usedProducts.push(curProduct);
     }
     for (const recipe of viableRecipes) {
       usedRecipes.push(recipe);
@@ -25,5 +25,9 @@ export const findAllRelatedRecipesAndProducts = (
     }
   };
   recursion(product);
-  return { usedRecipes, usedProducts, usedResources: [...usedResources] };
+  return {
+    usedRecipes,
+    usedProducts: usedProducts.filter((x) => x !== product),
+    usedResources: [...usedResources],
+  };
 };

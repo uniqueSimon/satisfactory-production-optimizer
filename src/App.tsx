@@ -1,36 +1,31 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  Col,
+  Checkbox,
   Form,
   InputNumber,
-  Row,
   Select,
-  Space,
-  Switch,
-  Tooltip,
   Typography,
 } from "antd";
-import { ExclamationCircleOutlined } from "@ant-design/icons";
-import { BestRecipesOfProducts } from "./BestRecipesOfProduct";
 import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
-import { recipeTreeSearch } from "./recipeTreeSearch";
 import { narrowDownRecipes } from "./narrowDownRecipes";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
-import { allRecipes } from "./allRecipesFromConfig";
-import "./styles.css";
-import { TreeBuilder } from "./TreeBuilder";
-import { buildTree } from "./buildTree";
+import { ProducedIn, allRecipes } from "./allRecipesFromConfig";
 
+import { TreeBuilder } from "./TreeBuilder";
+import { useLocalStorage } from "./useLocalStorage";
+import { SavedSettingsButton } from "./SavedSettingsButton";
 export interface Recipe {
   recipeName: string;
   displayName: string;
   product: { name: string; amount: number };
   ingredients: { name: string; amount: number }[];
   time: number;
+  producedIn: ProducedIn | "CUSTOM";
 }
 export interface Tree {
   recipeName: string;
+  isBestRecipe: boolean;
   numberOfMachines: number;
   ingredients: {
     product: string;
@@ -68,163 +63,269 @@ for (const recipe of allRecipes) {
 }
 
 export const App = () => {
-  const [productToProduce, setProductToProduce] = useState(
+  const [savedSettings, setSavedSettings] = useLocalStorage<
+    {
+      timestamp: number;
+      productToProduce: string;
+      wantedOutputRate: number;
+      currentResources: string[];
+      currentProducts: string[];
+    }[]
+  >("saved-settings", []);
+  const [productToProduce, setProductToProduce] = useLocalStorage(
+    "product-to-produce",
     "IronPlateReinforced"
   );
-  const [wantedOutputRate, setWantedOutputRate] = useState(60);
-  const [excludedRecipes, setExcludedRecipes] = useState(
+  const [wantedOutputRate, setWantedOutputRate] = useLocalStorage(
+    "wanted-output-rate",
+    60
+  );
+  const [excludedRecipes, setExcludedRecipes] = useLocalStorage(
+    "excluded-recipes",
     defaultExcludedRecipes
   );
-  const [
-    onlyOneVariantPerResourceTypes,
-    setShowOnlyOneVariantPerResourceTypes,
-  ] = useState(true);
   const [allRelevantRecipes, setAllRelevantRecipes] = useState<Recipe[]>([]);
+  const [allRelevantResources, setAllRelevantResources] = useState<string[]>(
+    []
+  );
+  const [allRelevantProducts, setAllRelevantProducts] = useState<string[]>([]);
   const [currentRecipes, setCurrentRecipes] = useState<Recipe[]>([]);
-  const [resourcesToChooseFrom, setResourcesToChooseFrom] = useState<string[]>(
+  const [currentProducts, setCurrentProducts] = useLocalStorage<string[]>(
+    "current-products",
     []
   );
-  const [productsToChooseFrom, setProductsToChooseFrom] = useState<string[]>(
+  const [currentResources, setCurrentResources] = useLocalStorage<string[]>(
+    "current-resources",
     []
   );
-  const [currentResources, setCurrentResources] = useState<string[]>([]);
   useEffect(() => {
     const { usedProducts, usedRecipes, usedResources } =
       findAllRelatedRecipesAndProducts(
         productToProduce,
         allRecipes.filter((x) => !excludedRecipes.includes(x.recipeName))
       );
-    setResourcesToChooseFrom(usedResources);
-    setProductsToChooseFrom(usedProducts);
-    setCurrentResources(usedResources);
-    setCurrentRecipes(usedRecipes);
+    setAllRelevantResources(usedResources);
     setAllRelevantRecipes(usedRecipes);
+    setAllRelevantProducts(usedProducts);
+
+    const storedCurrentResources = localStorage.getItem("current-resources");
+    const storedCurrentProducts = localStorage.getItem("current-products");
+    if (storedCurrentResources || storedCurrentProducts) {
+      const resources = storedCurrentResources
+        ? JSON.parse(storedCurrentResources)
+        : usedResources;
+      const products = storedCurrentProducts
+        ? JSON.parse(storedCurrentProducts)
+        : [];
+      const { usedRecipes: usedRecipesNarrowed } = narrowDownRecipes(
+        productToProduce,
+        usedRecipes,
+        resources,
+        products
+      );
+      setCurrentRecipes(usedRecipesNarrowed);
+    } else {
+      setCurrentProducts([]);
+      setCurrentResources(usedResources);
+      setCurrentRecipes(usedRecipes);
+    }
   }, [productToProduce, excludedRecipes]);
-  const recipeVariants = recipeTreeSearch(
-    productToProduce,
-    currentResources,
-    currentRecipes,
-    onlyOneVariantPerResourceTypes,
-    wantedOutputRate
-  );
-  const updateResourcesAndRecipes = (resources: string[]) => {
+  const updateResourcesAndRecipes = (
+    resources: string[],
+    inputProducts: string[]
+  ) => {
     setCurrentResources(resources);
-    const narrowedDownRecipes = narrowDownRecipes(
+    setCurrentProducts(inputProducts);
+    const { usedRecipes } = narrowDownRecipes(
       productToProduce,
       allRelevantRecipes,
-      resources
+      resources,
+      inputProducts
     );
-    setCurrentRecipes(narrowedDownRecipes);
+    setCurrentRecipes(usedRecipes);
   };
-  const tree = buildTree(productToProduce, wantedOutputRate, currentRecipes);
-  console.log(tree.recipeTree)
   return (
     <div className="page-container">
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Form.Item
-              label="Product"
-              tooltip={{ title: "Select a product to produce" }}
-            >
-              <Select
-                showSearch={true}
-                options={[...allProducts].map((x) => ({
-                  key: x,
-                  value: x,
-                  label: productDisplayNameMapping.get(x)!,
-                }))}
-                value={productToProduce}
-                onChange={setProductToProduce}
-                filterOption={(input, option) =>
-                  option!.label.toLowerCase().includes(input.toLowerCase())
-                }
+        <Form.Item label="Save settings">
+          <Button
+            onClick={() => {
+              setSavedSettings([
+                ...savedSettings,
+                {
+                  timestamp: Date.now(),
+                  productToProduce,
+                  wantedOutputRate,
+                  currentResources,
+                  currentProducts,
+                },
+              ]);
+            }}
+          >
+            Save
+          </Button>
+        </Form.Item>
+        <Form.Item label="Choose saved settings">
+          <div style={{ display: "flex" }}>
+            {savedSettings.map((x) => (
+              <SavedSettingsButton
+                key={x.timestamp}
+                label={productDisplayNameMapping.get(x.productToProduce)!}
+                onSelect={() => {
+                  setProductToProduce(x.productToProduce);
+                  setWantedOutputRate(x.wantedOutputRate);
+                  const { usedProducts, usedRecipes, usedResources } =
+                    findAllRelatedRecipesAndProducts(
+                      x.productToProduce,
+                      allRecipes.filter(
+                        (x) => !excludedRecipes.includes(x.recipeName)
+                      )
+                    );
+                  setAllRelevantResources(usedResources);
+                  setAllRelevantRecipes(usedRecipes);
+                  setAllRelevantProducts(usedProducts);
+                  const { usedRecipes: usedRecipesNarrowed } =
+                    narrowDownRecipes(
+                      x.productToProduce,
+                      usedRecipes,
+                      x.currentResources,
+                      x.currentProducts
+                    );
+                  setCurrentRecipes(usedRecipesNarrowed);
+                  setCurrentResources(x.currentResources);
+                  setCurrentProducts(x.currentProducts);
+                }}
+                onDelete={() => {
+                  setSavedSettings(
+                    savedSettings.filter((y) => y.timestamp !== x.timestamp)
+                  );
+                }}
               />
-            </Form.Item>
-          </Col>
-          <Col span={6}>
-            <Form.Item label="Output rate (1/min)">
+            ))}
+          </div>
+        </Form.Item>
+        <div style={{ display: "flex" }}>
+          <Form.Item
+            label="Product"
+            tooltip={{ title: "Select a product to produce" }}
+            style={{ marginRight: 8, width: 400 }}
+          >
+            <Select
+              showSearch={true}
+              options={[...allProducts].map((x) => ({
+                key: x,
+                value: x,
+                label: productDisplayNameMapping.get(x)!,
+              }))}
+              value={productToProduce}
+              onChange={(value) => {
+                localStorage.removeItem("current-resources");
+                localStorage.removeItem("current-products");
+                setProductToProduce(value);
+              }}
+              filterOption={(input, option) =>
+                option!.label.toLowerCase().includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+          <div>
+            <Form.Item label="Output rate (1/min)" style={{ width: 250 }}>
               <InputNumber
                 value={wantedOutputRate}
                 onChange={(x) => setWantedOutputRate(x ?? 0)}
               />
             </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item label="Recipes to exclude">
-              <Select
-                mode="multiple"
-                allowClear={true}
-                options={allRecipes.map((x) => ({
-                  key: x.recipeName,
-                  value: x.recipeName,
-                  label: x.displayName,
-                }))}
-                value={excludedRecipes}
-                onChange={(x) => setExcludedRecipes(x)}
-              />
-            </Form.Item>
-          </Col>
-        </Row>
+          </div>
+          <Form.Item label="Recipes to exclude">
+            <Select
+              mode="multiple"
+              allowClear={true}
+              options={allRecipes.map((x) => ({
+                key: x.recipeName,
+                value: x.recipeName,
+                label: x.displayName,
+              }))}
+              value={excludedRecipes}
+              onChange={(x) => setExcludedRecipes(x)}
+            />
+          </Form.Item>
+        </div>
         <Form.Item label="Input resources">
-          <Row gutter={16}>
-            <Col span={2}>
-              <Button
-                onClick={() => updateResourcesAndRecipes(resourcesToChooseFrom)}
-              >
-                Select all
-              </Button>
-            </Col>
-            <Col span={22}>
-              <Select
-                mode="multiple"
-                allowClear={true}
-                options={[
-                  ...resourcesToChooseFrom,
-                  ...productsToChooseFrom,
-                ].map((x) => ({
-                  key: x,
-                  value: x,
-                  label: productDisplayNameMapping.get(x),
-                }))}
-                value={currentResources}
-                onChange={updateResourcesAndRecipes}
-              />
-            </Col>
-          </Row>
+          <Checkbox
+            style={{ marginRight: 8 }}
+            onChange={(e) =>
+              updateResourcesAndRecipes(
+                e.target.checked ? allRelevantResources : [],
+                currentProducts
+              )
+            }
+            checked={currentResources.length === allRelevantResources.length}
+            indeterminate={
+              currentResources.length !== allRelevantResources.length &&
+              currentResources.length > 0
+            }
+          >
+            Select all
+          </Checkbox>
+          <Checkbox.Group
+            options={allRelevantResources.map((x) => ({
+              key: x,
+              value: x,
+              label: productDisplayNameMapping.get(x),
+            }))}
+            value={currentResources}
+            onChange={(resources) =>
+              updateResourcesAndRecipes(resources, currentProducts)
+            }
+          />
+        </Form.Item>
+        <Form.Item label="Input products">
+          <Checkbox
+            style={{ marginRight: 8 }}
+            onChange={(e) =>
+              updateResourcesAndRecipes(
+                currentResources,
+                e.target.checked ? allRelevantProducts : []
+              )
+            }
+            checked={currentProducts.length === allRelevantProducts.length}
+            indeterminate={
+              currentProducts.length !== allRelevantProducts.length &&
+              currentProducts.length > 0
+            }
+          >
+            Select all
+          </Checkbox>
+          <Checkbox.Group
+            options={allRelevantProducts.map((x) => ({
+              key: x,
+              value: x,
+              label: productDisplayNameMapping.get(x),
+            }))}
+            value={currentProducts}
+            onChange={(products) =>
+              updateResourcesAndRecipes(currentResources, products)
+            }
+          />
         </Form.Item>
         <TreeBuilder
-          key={JSON.stringify(tree.recipeTree)}
-          tree={tree.recipeTree}
+          currentRecipes={currentRecipes}
+          allRelevantRecipes={allRelevantRecipes}
+          productToProduce={productToProduce}
+          wantedOutputRate={wantedOutputRate}
+          currentProducts={currentProducts}
+          removeResource={(resource) =>
+            updateResourcesAndRecipes(
+              currentResources.filter((x) => x !== resource),
+              currentProducts
+            )
+          }
+          addInputProduct={(product) =>
+            setCurrentProducts([...currentProducts, product])
+          }
         />
-        <Form.Item label="Show only one variant per resource types">
-          <Space>
-            <Switch
-              value={onlyOneVariantPerResourceTypes}
-              onChange={(x) => setShowOnlyOneVariantPerResourceTypes(x)}
-            />
-            {recipeVariants.length >= 100 && (
-              <Tooltip title="There are too many variants! Not all variants could be calculated!">
-                <ExclamationCircleOutlined
-                  style={{ fontSize: "30px", color: "red" }}
-                />
-              </Tooltip>
-            )}
-          </Space>
-        </Form.Item>
       </Form>
-      <BestRecipesOfProducts
-        productToProduce={productToProduce}
-        wantedOutputRate={wantedOutputRate}
-        recipeVariants={recipeVariants ?? []}
-        findRecipeByName={findRecipeByName}
-        currentResourceTypes={currentResources}
-        chooseResourceTypes={(resourceTypes) => {
-          updateResourcesAndRecipes([...resourceTypes]);
-          setShowOnlyOneVariantPerResourceTypes(false);
-        }}
-      />
     </div>
   );
 };

@@ -1,80 +1,95 @@
-import { Select, Tooltip } from "antd";
+import { Button, Form, InputNumber } from "antd";
+import { Recipe, Tree } from "./App";
+import { buildTree } from "./buildTree";
+import { SelectOutlined } from "@ant-design/icons";
+import { EfficientTreeSelection } from "./EfficientTreeSelection";
+import { TreeLayout } from "./TreeLayout";
 import { useState } from "react";
-import { Tree, findRecipeByName } from "./App";
-import { productDisplayNameMapping } from "./getProductDisplayNames";
 
 interface Props {
-  tree: Tree[];
+  productToProduce: string;
+  wantedOutputRate: number;
+  currentRecipes: Recipe[];
+  currentProducts: string[];
+  allRelevantRecipes: Recipe[];
+  removeResource: (resource: string) => void;
+  addInputProduct: (product: string) => void;
 }
+
 export const TreeBuilder = (props: Props) => {
-  const weightedPoints = props.tree.map((x) =>
-    x.ingredients.reduce(
-      (acc, ingredient) => acc + ingredient.weightedPoints,
-      0
-    )
+  const tree = buildTree(
+    props.productToProduce,
+    props.wantedOutputRate,
+    props.currentRecipes,
+    props.currentProducts,
+    props.allRelevantRecipes
   );
-  const minWeightedPoints = weightedPoints.reduce(
-    (acc, x, i) => (x < acc.value ? { index: i, value: x } : acc),
-    { index: -1, value: Infinity }
-  );
-  const [selectedRecipe, setSelectedRecipe] = useState(minWeightedPoints.index);
-  if (props.tree.length === 0) {
-    return null;
-  }
+  const [scale, setScale] = useState(3);
   return (
-    <div style={{ border: "solid", textAlign: "center" }}>
-      <Select
-        options={props.tree.map((x, i) => ({
-          key: i,
-          value: i,
-          label: (
-            <>
-              <RoundedNumber number={props.tree[i].numberOfMachines} />
-              {" x "}
-              <b>
-                {findRecipeByName.get(x.recipeName)!.displayName}
-                {props.tree.length > 1 && "*"}
-              </b>
-              {" WP: "}
-              {Math.round(weightedPoints[i] * 100) / 100}
-            </>
-          ),
-        }))}
-        value={selectedRecipe}
-        onChange={setSelectedRecipe}
-        style={{ width: "100%" }}
+    <>
+      <LinkToCalculator
+        productToProduce={props.productToProduce}
+        wantedOutputRate={props.wantedOutputRate}
+        currentProducts={props.currentProducts}
+        tree={tree.recipeTree}
       />
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        {props.tree[selectedRecipe]?.ingredients?.map((ingredientTree, i) => (
-          <div
-            key={i}
-            style={{
-              width: "100%",
-              border: ingredientTree.rate < 0 ? "solid red" : undefined,
-            }}
-          >
-            <b>{productDisplayNameMapping.get(ingredientTree.product)}</b>
-            {" ("}
-            <RoundedNumber number={ingredientTree.rate} />
-            {" 1/min)"}
-            {" WP: "}
-            {Math.round(ingredientTree.weightedPoints * 100) / 100}
-            <TreeBuilder
-              key={ingredientTree.product}
-              tree={ingredientTree.ingredientTree}
-            />
-          </div>
-        ))}
+      <div style={{ display: "flex" }}>
+        <EfficientTreeSelection
+          key={JSON.stringify(tree)}
+          tree={tree.recipeTree}
+          removeResource={props.removeResource}
+          addInputProduct={props.addInputProduct}
+        />
       </div>
-    </div>
+      <div style={{ height: 50 }}></div>
+      <Form.Item label="Scaling factor" style={{ width: 250 }}>
+        <InputNumber value={scale} onChange={(x) => setScale(x ?? 1)} />
+      </Form.Item>
+      <div style={{ display: "flex" }}>
+        <TreeLayout tree={tree.recipeTree} scale={scale} />
+      </div>
+    </>
   );
 };
 
-const RoundedNumber = (props: { number: number }) => {
-  const rounded = Math.round(props.number * 100) / 100;
+const LinkToCalculator = (props: {
+  productToProduce: string;
+  wantedOutputRate: number;
+  tree: Tree[];
+  currentProducts: string[];
+}) => {
+  const baseLink =
+    "https://satisfactory-calculator.com/en/planners/production/index/json/";
+  const input = props.currentProducts.length
+    ? Object.fromEntries(
+        props.currentProducts.map((x) => [`Desc_${x}_C`, 1_000_000])
+      )
+    : undefined;
+  const bestRecipes: string[] = [];
+  const recursion = (tree: Tree[]) => {
+    for (const recipeTree of tree) {
+      if (recipeTree.isBestRecipe) {
+        bestRecipes.push(recipeTree.recipeName);
+        for (const ingredient of recipeTree.ingredients) {
+          recursion(ingredient.ingredientTree);
+        }
+      }
+    }
+  };
+  recursion(props.tree);
+  const altRecipes = bestRecipes.map((x) => `Recipe_${x}_C`);
+  const obj = {
+    [`Desc_${props.productToProduce}_C`]: props.wantedOutputRate.toString(),
+    input,
+    altRecipes,
+  };
+  const url = `${baseLink}${encodeURIComponent(JSON.stringify(obj))}`;
   return (
-    <Tooltip title={rounded === props.number ? "" : props.number}>
-      {rounded}
-    </Tooltip>
+    <Form.Item label="Open most efficient production plan in satisfactory-calculator.com">
+      <Button onClick={() => window.open(url, "_blank")}>
+        Link
+        <SelectOutlined rotate={90} />
+      </Button>
+    </Form.Item>
   );
 };

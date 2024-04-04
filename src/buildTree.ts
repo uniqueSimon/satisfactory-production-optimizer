@@ -11,6 +11,7 @@ enum WeightingFactor {
   OreGold = 1 / 1.104,
   OreBauxite = 1 / 0.978,
   RawQuartz = 1 / 1.05,
+  OreUranium = 1 / 0.21,
   PolymerResin = (1 / 6) * WeightingFactor.LiquidOil,
   HeavyOilResidue = (2 / 3) * WeightingFactor.LiquidOil,
   LiquidFuel = (1 / 3) * WeightingFactor.LiquidOil,
@@ -22,7 +23,29 @@ enum WeightingFactor {
     12,
 }
 
-export const buildTree = (product: string, rate: number, recipes: Recipe[]) => {
+export const buildTree = (
+  product: string,
+  rate: number,
+  recipes: Recipe[],
+  inputProducts: string[],
+  allRelevantRecipes: Recipe[]
+): {
+  recipeTree: Tree[];
+  weightedPoints: number;
+} => {
+  if (inputProducts.includes(product)) {
+    const { weightedPoints } = buildTree(
+      product,
+      rate,
+      allRelevantRecipes,
+      [],
+      allRelevantRecipes
+    );
+    return {
+      recipeTree: [] as Tree[],
+      weightedPoints,
+    };
+  }
   const viableRecipes = recipes.filter((x) => x.product.name === product);
   if (!viableRecipes.length || rate < 0) {
     if (!(product in WeightingFactor) && recipes.length > 0) {
@@ -41,11 +64,14 @@ export const buildTree = (product: string, rate: number, recipes: Recipe[]) => {
     };
   }
   let minWeightedPoints = Infinity;
-  const ret = viableRecipes.map((recipe) => {
+  let minWeightedPointsIndex = -1;
+  const ret: Tree[] = [];
+  viableRecipes.forEach((recipe, i) => {
     const recipeTree: Tree = {
       recipeName: recipe.recipeName,
       numberOfMachines: rate / ((recipe.product.amount / recipe.time) * 60),
       ingredients: [],
+      isBestRecipe: false,
     };
     let summedWeightedPoints = 0;
     for (const ingredient of recipe.ingredients) {
@@ -53,7 +79,9 @@ export const buildTree = (product: string, rate: number, recipes: Recipe[]) => {
       const ingredientTree = buildTree(
         ingredient.name,
         ingredientRate,
-        recipes
+        recipes,
+        inputProducts,
+        allRelevantRecipes
       );
       recipeTree.ingredients.push({
         product: ingredient.name,
@@ -65,8 +93,10 @@ export const buildTree = (product: string, rate: number, recipes: Recipe[]) => {
     }
     if (summedWeightedPoints < minWeightedPoints) {
       minWeightedPoints = summedWeightedPoints;
+      minWeightedPointsIndex = i;
     }
-    return recipeTree;
+    ret.push(recipeTree);
   });
+  ret[minWeightedPointsIndex].isBestRecipe = true;
   return { recipeTree: ret, weightedPoints: minWeightedPoints };
 };

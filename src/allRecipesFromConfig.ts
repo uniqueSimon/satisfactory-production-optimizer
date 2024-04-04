@@ -8,7 +8,21 @@ interface ItemClass {
   mIngredients: string;
   mManufactoringDuration: string;
   mDisplayName: string;
+  mProducedIn: string;
 }
+
+export enum ProducedIn {
+  AssemblerMk1 = "ASSEMBLER",
+  Blender = "BLENDER",
+  ConstructorMk1 = "CONSTRUCTOR",
+  FoundryMk1 = "FOUNDRY",
+  HadronCollider = "HADRON_COLLIDER",
+  ManufacturerMk1 = "MANUFACTURER",
+  OilRefinery = "REFINERY",
+  Packager = "PACKAGER",
+  SmelterMk1 = "SMELTER",
+}
+
 const defaultExcludedRecipes = [
   "Alternate_Coal_1", //requires wood
   "Alternate_Coal_2", //requires biomass
@@ -70,9 +84,11 @@ for (const item of recipeNativeClass!.Classes) {
   ) {
     const ingredients = getIngredients(itemClass.mIngredients);
     const time = +itemClass.mManufactoringDuration;
-    if (recipeName.includes("Unpackage")) {
+    const producedInString = itemClass.mProducedIn.split("/")[5];
+    if (recipeName.includes("Unpackage") || !(producedInString in ProducedIn)) {
       continue;
     }
+    const producedIn = ProducedIn[producedInString as keyof typeof ProducedIn];
     const splittedProducts = itemClass.mProduct.split("),(");
 
     const products = splittedProducts.map((product) =>
@@ -88,6 +104,7 @@ for (const item of recipeNativeClass!.Classes) {
           { name: products[1].name, amount: -products[1].amount },
         ],
         time,
+        producedIn,
       });
       if (
         products[1].name !== "Water" &&
@@ -102,6 +119,7 @@ for (const item of recipeNativeClass!.Classes) {
             { name: products[0].name, amount: -products[0].amount },
           ],
           time,
+          producedIn,
         });
       }
     } else if (products.length === 1) {
@@ -111,6 +129,7 @@ for (const item of recipeNativeClass!.Classes) {
         product: products[0],
         ingredients,
         time,
+        producedIn,
       });
     } else {
       console.warn("Error: Unknown product count", products);
@@ -126,6 +145,7 @@ allRecipes.push({
     { name: "Water", amount: 10 },
   ],
   time: 9,
+  producedIn: "CUSTOM",
 });
 allRecipes.push({
   recipeName: "EfficientRubber",
@@ -136,5 +156,6 @@ allRecipes.push({
     { name: "Water", amount: 10 },
   ],
   time: 9,
+  producedIn: "CUSTOM",
 });
 export { allRecipes };

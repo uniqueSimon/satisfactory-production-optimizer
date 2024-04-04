@@ -3,17 +3,22 @@ import { Recipe } from "./App";
 export const narrowDownRecipes = (
   product: string,
   recipes: Recipe[],
-  resources: string[]
+  resources: string[],
+  inputProducts: string[]
 ) => {
   const usedRecipes: Recipe[] = [];
   const usedProducts: string[] = [];
 
-  const canProductBeProduced = (product: string) => {
-    if (usedProducts.includes(product) || resources.includes(product)) {
+  const canProductBeProduced = (curProduct: string) => {
+    if (
+      usedProducts.includes(curProduct) ||
+      resources.includes(curProduct) ||
+      inputProducts.includes(curProduct)
+    ) {
       return true;
     }
     let productCanBeProduced = false;
-    const viableRecipes = recipes.filter((x) => x.product.name === product);
+    const viableRecipes = recipes.filter((x) => x.product.name === curProduct);
     for (const recipe of viableRecipes) {
       let recipeIsValid = true;
       for (const ingredient of recipe.ingredients) {
@@ -32,11 +37,12 @@ export const narrowDownRecipes = (
       }
     }
     if (productCanBeProduced) {
-      usedProducts.push(product);
+      curProduct !== product && usedProducts.push(curProduct);
       return true;
     }
     return false;
   };
   canProductBeProduced(product);
-  return usedRecipes;
+
+  return { usedRecipes, usedProducts };
 };
