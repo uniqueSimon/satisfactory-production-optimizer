@@ -57,6 +57,7 @@ const convertRateUnits = (productName: string, rate: number) => {
       "Water",
       "HeavyOilResidue",
       "LiquidFuel",
+      "LiquidTurboFuel",
       "AluminaSolution",
     ].includes(productName)
   ) {
@@ -95,19 +96,23 @@ for (const item of recipeNativeClass!.Classes) {
       getProductAndAmount(product)
     );
     if (products.length === 2) {
-      allRecipes.push({
-        recipeName,
-        displayName: `${displayName} 1`,
-        product: products[0],
-        ingredients: [
-          ...ingredients,
-          { name: products[1].name, amount: -products[1].amount },
-        ],
-        time,
-        producedIn,
-      });
+      if (products[0].name !== "Water")
+        allRecipes.push({
+          recipeName,
+          displayName: `${displayName} 1`,
+          product: products[0],
+          ingredients: [
+            ...ingredients,
+            { name: products[1].name, amount: -products[1].amount },
+          ],
+          time,
+          producedIn,
+        });
       if (
         products[1].name !== "Water" &&
+        !(
+          recipeName === "UraniumCell" && products[1].name === "SulfuricAcid"
+        ) &&
         !defaultExcludedRecipes.includes(recipeName)
       ) {
         allRecipes.push({

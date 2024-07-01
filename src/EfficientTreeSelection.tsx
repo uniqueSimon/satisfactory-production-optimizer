@@ -75,7 +75,7 @@ export const EfficientTreeSelection = (props: {
                   <b>{productDisplayNameMapping.get(ingredientTree.product)}</b>
                   {" ("}
                   <RoundedNumber number={ingredientTree.rate} />
-                  {" 1/min)"}
+                  {"/min)"}
                   {" WP: "}
                   {Math.round(ingredientTree.weightedPoints * 100) / 100}
                 </div>

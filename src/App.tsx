@@ -1,12 +1,4 @@
-import { useEffect, useState } from "react";
-import {
-  Button,
-  Checkbox,
-  Form,
-  InputNumber,
-  Select,
-  Typography,
-} from "antd";
+import { Button, Checkbox, Form, InputNumber, Select, Typography } from "antd";
 import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
 import { narrowDownRecipes } from "./narrowDownRecipes";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
@@ -34,6 +26,14 @@ export interface Tree {
     ingredientTree: Tree[];
   }[];
 }
+interface SavedSetting {
+  timestamp: number;
+  productToProduce: string;
+  wantedOutputRate: number;
+  currentResources: string[];
+  currentProducts: string[];
+}
+
 const defaultExcludedRecipes = [
   "Screw", //same as Alternate_Screw, no IronRod
   "Alternate_ReinforcedIronPlate_1", //worse than IronPlateReinforced, same Ingredients
@@ -63,18 +63,13 @@ for (const recipe of allRecipes) {
 }
 
 export const App = () => {
-  const [savedSettings, setSavedSettings] = useLocalStorage<
-    {
-      timestamp: number;
-      productToProduce: string;
-      wantedOutputRate: number;
-      currentResources: string[];
-      currentProducts: string[];
-    }[]
-  >("saved-settings", []);
+  const [savedSettings, setSavedSettings] = useLocalStorage<SavedSetting[]>(
+    "saved-settings",
+    []
+  );
   const [productToProduce, setProductToProduce] = useLocalStorage(
     "product-to-produce",
-    "IronPlateReinforced"
+    ""
   );
   const [wantedOutputRate, setWantedOutputRate] = useLocalStorage(
     "wanted-output-rate",
@@ -84,12 +79,20 @@ export const App = () => {
     "excluded-recipes",
     defaultExcludedRecipes
   );
-  const [allRelevantRecipes, setAllRelevantRecipes] = useState<Recipe[]>([]);
-  const [allRelevantResources, setAllRelevantResources] = useState<string[]>(
+  const [allRelevantRecipes, setAllRelevantRecipes] = useLocalStorage<Recipe[]>(
+    "all-relevant-recipes",
     []
   );
-  const [allRelevantProducts, setAllRelevantProducts] = useState<string[]>([]);
-  const [currentRecipes, setCurrentRecipes] = useState<Recipe[]>([]);
+  const [allRelevantResources, setAllRelevantResources] = useLocalStorage<
+    string[]
+  >("all-relevant-resources", []);
+  const [allRelevantProducts, setAllRelevantProducts] = useLocalStorage<
+    string[]
+  >("all-relevant-products", []);
+  const [currentRecipes, setCurrentRecipes] = useLocalStorage<Recipe[]>(
+    "current-recipes",
+    []
+  );
   const [currentProducts, setCurrentProducts] = useLocalStorage<string[]>(
     "current-products",
     []
@@ -98,38 +101,20 @@ export const App = () => {
     "current-resources",
     []
   );
-  useEffect(() => {
+  const onChangeProductToProduce = (chosenProduct: string) => {
+    setProductToProduce(chosenProduct);
     const { usedProducts, usedRecipes, usedResources } =
       findAllRelatedRecipesAndProducts(
-        productToProduce,
+        chosenProduct,
         allRecipes.filter((x) => !excludedRecipes.includes(x.recipeName))
       );
     setAllRelevantResources(usedResources);
     setAllRelevantRecipes(usedRecipes);
     setAllRelevantProducts(usedProducts);
-
-    const storedCurrentResources = localStorage.getItem("current-resources");
-    const storedCurrentProducts = localStorage.getItem("current-products");
-    if (storedCurrentResources || storedCurrentProducts) {
-      const resources = storedCurrentResources
-        ? JSON.parse(storedCurrentResources)
-        : usedResources;
-      const products = storedCurrentProducts
-        ? JSON.parse(storedCurrentProducts)
-        : [];
-      const { usedRecipes: usedRecipesNarrowed } = narrowDownRecipes(
-        productToProduce,
-        usedRecipes,
-        resources,
-        products
-      );
-      setCurrentRecipes(usedRecipesNarrowed);
-    } else {
-      setCurrentProducts([]);
-      setCurrentResources(usedResources);
-      setCurrentRecipes(usedRecipes);
-    }
-  }, [productToProduce, excludedRecipes]);
+    setCurrentProducts([]);
+    setCurrentResources(usedResources);
+    setCurrentRecipes(usedRecipes);
+  };
   const updateResourcesAndRecipes = (
     resources: string[],
     inputProducts: string[]
@@ -144,8 +129,29 @@ export const App = () => {
     );
     setCurrentRecipes(usedRecipes);
   };
+  const onChooseSavedSetting = (setting: SavedSetting) => {
+    setProductToProduce(setting.productToProduce);
+    setWantedOutputRate(setting.wantedOutputRate);
+    const { usedProducts, usedRecipes, usedResources } =
+      findAllRelatedRecipesAndProducts(
+        setting.productToProduce,
+        allRecipes.filter((x) => !excludedRecipes.includes(x.recipeName))
+      );
+    setAllRelevantResources(usedResources);
+    setAllRelevantRecipes(usedRecipes);
+    setAllRelevantProducts(usedProducts);
+    const { usedRecipes: usedRecipesNarrowed } = narrowDownRecipes(
+      setting.productToProduce,
+      usedRecipes,
+      setting.currentResources,
+      setting.currentProducts
+    );
+    setCurrentRecipes(usedRecipesNarrowed);
+    setCurrentResources(setting.currentResources);
+    setCurrentProducts(setting.currentProducts);
+  };
   return (
-    <div className="page-container">
+    <div style={{ margin: 10 }}>
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
         <Form.Item label="Save settings">
@@ -168,37 +174,16 @@ export const App = () => {
         </Form.Item>
         <Form.Item label="Choose saved settings">
           <div style={{ display: "flex" }}>
-            {savedSettings.map((x) => (
+            {savedSettings.map((setting) => (
               <SavedSettingsButton
-                key={x.timestamp}
-                label={productDisplayNameMapping.get(x.productToProduce)!}
-                onSelect={() => {
-                  setProductToProduce(x.productToProduce);
-                  setWantedOutputRate(x.wantedOutputRate);
-                  const { usedProducts, usedRecipes, usedResources } =
-                    findAllRelatedRecipesAndProducts(
-                      x.productToProduce,
-                      allRecipes.filter(
-                        (x) => !excludedRecipes.includes(x.recipeName)
-                      )
-                    );
-                  setAllRelevantResources(usedResources);
-                  setAllRelevantRecipes(usedRecipes);
-                  setAllRelevantProducts(usedProducts);
-                  const { usedRecipes: usedRecipesNarrowed } =
-                    narrowDownRecipes(
-                      x.productToProduce,
-                      usedRecipes,
-                      x.currentResources,
-                      x.currentProducts
-                    );
-                  setCurrentRecipes(usedRecipesNarrowed);
-                  setCurrentResources(x.currentResources);
-                  setCurrentProducts(x.currentProducts);
-                }}
+                key={setting.timestamp}
+                label={productDisplayNameMapping.get(setting.productToProduce)!}
+                onSelect={() => onChooseSavedSetting(setting)}
                 onDelete={() => {
                   setSavedSettings(
-                    savedSettings.filter((y) => y.timestamp !== x.timestamp)
+                    savedSettings.filter(
+                      (x) => x.timestamp !== setting.timestamp
+                    )
                   );
                 }}
               />
@@ -219,11 +204,7 @@ export const App = () => {
                 label: productDisplayNameMapping.get(x)!,
               }))}
               value={productToProduce}
-              onChange={(value) => {
-                localStorage.removeItem("current-resources");
-                localStorage.removeItem("current-products");
-                setProductToProduce(value);
-              }}
+              onChange={onChangeProductToProduce}
               filterOption={(input, option) =>
                 option!.label.toLowerCase().includes(input.toLowerCase())
               }
