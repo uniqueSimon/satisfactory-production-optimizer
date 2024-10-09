@@ -16,6 +16,14 @@ interface Props {
   addInputProduct: (product: string) => void;
 }
 
+export interface TreeSelection {
+  recipeName: string;
+  ingredients: {
+    product: string;
+    ingredientTree: TreeSelection;
+  }[];
+}
+
 export const TreeBuilder = (props: Props) => {
   const tree = buildTree(
     props.productToProduce,
@@ -25,18 +33,19 @@ export const TreeBuilder = (props: Props) => {
     props.allRelevantRecipes
   );
   const [scale, setScale] = useState(3);
+  const [treeSelection, setTreeSelection] = useState<TreeSelection>();
   return (
     <>
-      <LinkToCalculator
+      {/* <LinkToCalculator
         productToProduce={props.productToProduce}
         wantedOutputRate={props.wantedOutputRate}
         currentProducts={props.currentProducts}
-        tree={tree.recipeTree}
-      />
+        tree={tree}
+      /> */}
       <div style={{ display: "flex" }}>
         <EfficientTreeSelection
           key={JSON.stringify(tree)}
-          tree={tree.recipeTree}
+          tree={tree}
           removeResource={props.removeResource}
           addInputProduct={props.addInputProduct}
         />
@@ -46,13 +55,13 @@ export const TreeBuilder = (props: Props) => {
         <InputNumber value={scale} onChange={(x) => setScale(x ?? 1)} />
       </Form.Item>
       <div style={{ display: "flex" }}>
-        <TreeLayout tree={tree.recipeTree} scale={scale} />
+        <TreeLayout tree={tree} scale={scale} />
       </div>
     </>
   );
 };
 
-const LinkToCalculator = (props: {
+/* const LinkToCalculator = (props: {
   productToProduce: string;
   wantedOutputRate: number;
   tree: Tree[];
@@ -92,4 +101,4 @@ const LinkToCalculator = (props: {
       </Button>
     </Form.Item>
   );
-};
+}; */

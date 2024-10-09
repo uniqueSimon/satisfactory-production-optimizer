@@ -14,7 +14,7 @@ export const TreeLayout = (props: { tree: Tree[]; scale: number }) => {
   if (props.tree.length === 0) {
     return null;
   }
-  const bestBranch = props.tree.find((x) => x.isBestRecipe)!;
+  const bestBranch = props.tree[0];
   const recipe = findRecipeByName.get(bestBranch.recipeName)!;
   const ceil = Math.ceil(bestBranch.numberOfMachines);
   return (

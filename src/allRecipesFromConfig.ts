@@ -28,10 +28,13 @@ const defaultExcludedRecipes = [
   "Alternate_Coal_2", //requires biomass
   "Alternate_Plastic_1", //to avoid loop
   "Alternate_RecycledRubber", //to avoid loop
+  "Alternate_DilutedFuel",
+  "Alternate_RocketFuel_Nitro2",
+  "Alternate_RocketFuel_Nitro",
 ];
 const getProductAndAmount = (rawString: string) => {
   const prodMatching =
-    /BlueprintGeneratedClass.*\.(?:Desc|BP)_(.*)_C"',Amount=(\d+)/.exec(
+    /BlueprintGeneratedClass.*\.(?:Desc|BP)_(.*)_C'",Amount=(\d+)/.exec(
       rawString
     )!;
   const [_, name, originalAmount] = prodMatching;
@@ -43,7 +46,7 @@ const getIngredients = (rawString: string) => {
   const ingredients: { name: string; amount: number }[] = [];
   for (const rawIngredients of splittedIngredients) {
     const ingredientsMatching =
-      /\.(?:Desc|BP)_([A-Za-z_0-9]*)_C"',Amount=(\d+)/.exec(rawIngredients)!;
+      /\.(?:Desc|BP)_([A-Za-z_0-9]*)_C'",Amount=(\d+)/.exec(rawIngredients)!;
     const [_, name, rate] = ingredientsMatching;
     ingredients.push({ name, amount: convertRateUnits(name, +rate) });
   }
@@ -81,6 +84,7 @@ for (const item of recipeNativeClass!.Classes) {
     categoryMatching &&
     !categoryMatching[1].includes("Buildings") &&
     !categoryMatching[1].includes("Equipment") &&
+    !categoryMatching[1].includes("Converter") &&
     !categoryMatching[1].includes("Vehicle")
   ) {
     const ingredients = getIngredients(itemClass.mIngredients);
@@ -96,6 +100,7 @@ for (const item of recipeNativeClass!.Classes) {
       getProductAndAmount(product)
     );
     if (products.length === 2) {
+      continue;
       if (products[0].name !== "Water")
         allRecipes.push({
           recipeName,

@@ -9,15 +9,7 @@ export const EfficientTreeSelection = (props: {
   removeResource: (resource: string) => void;
   addInputProduct: (product: string) => void;
 }) => {
-  const weightedPoints = props.tree.map((x) =>
-    x.ingredients.reduce(
-      (acc, ingredient) => acc + ingredient.weightedPoints,
-      0
-    )
-  );
-  const [selectedRecipe, setSelectedRecipe] = useState(
-    props.tree.findIndex((x) => x.isBestRecipe)
-  );
+  const [selectedRecipe, setSelectedRecipe] = useState(0);
   return (
     <div>
       <Select
@@ -32,8 +24,6 @@ export const EfficientTreeSelection = (props: {
                 {findRecipeByName.get(x.recipeName)!.displayName}
                 {props.tree.length > 1 && "*"}
               </b>
-              {" WP: "}
-              {Math.round(weightedPoints[i] * 100) / 100}
             </>
           ),
         }))}
@@ -76,8 +66,6 @@ export const EfficientTreeSelection = (props: {
                   {" ("}
                   <RoundedNumber number={ingredientTree.rate} />
                   {"/min)"}
-                  {" WP: "}
-                  {Math.round(ingredientTree.weightedPoints * 100) / 100}
                 </div>
               </ContainerOverlay>
               {!isLeaf && (

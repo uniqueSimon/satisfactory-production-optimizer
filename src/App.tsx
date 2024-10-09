@@ -17,12 +17,10 @@ export interface Recipe {
 }
 export interface Tree {
   recipeName: string;
-  isBestRecipe: boolean;
   numberOfMachines: number;
   ingredients: {
     product: string;
     rate: number;
-    weightedPoints: number;
     ingredientTree: Tree[];
   }[];
 }
@@ -34,23 +32,7 @@ interface SavedSetting {
   currentProducts: string[];
 }
 
-const defaultExcludedRecipes = [
-  "Screw", //same as Alternate_Screw, no IronRod
-  "Alternate_ReinforcedIronPlate_1", //worse than IronPlateReinforced, same Ingredients
-  "IngotSteel", //worse than Alternate_IngotSteel_1, same Ingredients
-  //"IronPlateReinforced",
-  "Alternate_Coal_1", //requires wood
-  "Alternate_Coal_2", //requires biomass
-  "Alternate_Plastic_1", //to avoid loop
-  "Alternate_RecycledRubber", //to avoid loop
-  //"Plastic",
-  //"Rubber",
-  //"ResidualPlastic",
-  //"ResidualRubber",
-  //"LiquidFuel",
-  //"Alternate_PolymerResin",
-  //"Alternate_HeavyOilResidue",
-];
+const defaultIncludedRecipes = [] as string[];
 
 export const findRecipeByName = new Map<string, Recipe>();
 for (const recipe of allRecipes) {
@@ -75,9 +57,9 @@ export const App = () => {
     "wanted-output-rate",
     60
   );
-  const [excludedRecipes, setExcludedRecipes] = useLocalStorage(
-    "excluded-recipes",
-    defaultExcludedRecipes
+  const [includedRecipes, setIncludedRecipes] = useLocalStorage(
+    "included-recipes",
+    defaultIncludedRecipes
   );
   const [allRelevantRecipes, setAllRelevantRecipes] = useLocalStorage<Recipe[]>(
     "all-relevant-recipes",
@@ -106,7 +88,11 @@ export const App = () => {
     const { usedProducts, usedRecipes, usedResources } =
       findAllRelatedRecipesAndProducts(
         chosenProduct,
-        allRecipes.filter((x) => !excludedRecipes.includes(x.recipeName))
+        allRecipes.filter(
+          (x) =>
+            !x.recipeName.includes("Alternate") ||
+            includedRecipes.includes(x.recipeName)
+        )
       );
     setAllRelevantResources(usedResources);
     setAllRelevantRecipes(usedRecipes);
@@ -135,7 +121,11 @@ export const App = () => {
     const { usedProducts, usedRecipes, usedResources } =
       findAllRelatedRecipesAndProducts(
         setting.productToProduce,
-        allRecipes.filter((x) => !excludedRecipes.includes(x.recipeName))
+        allRecipes.filter(
+          (x) =>
+            !x.recipeName.includes("Alternate") ||
+            includedRecipes.includes(x.recipeName)
+        )
       );
     setAllRelevantResources(usedResources);
     setAllRelevantRecipes(usedRecipes);
@@ -218,17 +208,19 @@ export const App = () => {
               />
             </Form.Item>
           </div>
-          <Form.Item label="Recipes to exclude">
+          <Form.Item label="Recipes to include" style={{ width: 500 }}>
             <Select
               mode="multiple"
               allowClear={true}
-              options={allRecipes.map((x) => ({
-                key: x.recipeName,
-                value: x.recipeName,
-                label: x.displayName,
-              }))}
-              value={excludedRecipes}
-              onChange={(x) => setExcludedRecipes(x)}
+              options={allRecipes
+                .filter((x) => x.recipeName.includes("Alternate"))
+                .map((x) => ({
+                  key: x.recipeName,
+                  value: x.recipeName,
+                  label: x.displayName,
+                }))}
+              value={includedRecipes}
+              onChange={(x) => setIncludedRecipes(x)}
             />
           </Form.Item>
         </div>
