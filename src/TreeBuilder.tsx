@@ -24,7 +24,6 @@ export const TreeBuilder = (props: Props) => {
     props.allRelevantRecipes
   );
   const [scale, setScale] = useState(3);
-  const [recipeSelection, setRecipeSelection] = useState<string[]>([]);
   return (
     <>
       {/* <LinkToCalculator
@@ -34,13 +33,7 @@ export const TreeBuilder = (props: Props) => {
         tree={tree}
       /> */}
       <div style={{ display: "flex" }}>
-        <EfficientTreeSelection
-          key={JSON.stringify(tree)}
-          tree={tree}
-          addInputProduct={props.addInputProduct}
-          recipeSelection={recipeSelection}
-          setRecipeSelection={setRecipeSelection}
-        />
+        <EfficientTreeSelection key={JSON.stringify(tree)} tree={tree} />
       </div>
       <div style={{ height: 50 }}></div>
       <Form.Item label="Scaling factor" style={{ width: 250 }}>

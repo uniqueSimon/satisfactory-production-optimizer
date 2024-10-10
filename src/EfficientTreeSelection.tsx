@@ -1,46 +1,14 @@
-import { useState } from "react";
 import { Tree, findRecipeByName } from "./App";
-import { Select, Tooltip } from "antd";
+import { Tooltip } from "antd";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
 
-export const EfficientTreeSelection = (props: {
-  tree: Tree[];
-  recipeSelection: string[];
-  setRecipeSelection: (recipeSelection: string[]) => void;
-  addInputProduct: (product: string) => void;
-}) => {
-  const index = props.tree.findIndex((x) =>
-    props.recipeSelection.includes(x.recipeName)
-  );
-  const [selectedRecipe, setSelectedRecipe] = useState(
-    index === -1 ? 0 : index
-  );
-  const onChange = (selectedRecipe: number) => {
-    setSelectedRecipe(selectedRecipe);
-    const recipeName = props.tree[selectedRecipe].recipeName;
-    if (!props.recipeSelection.includes(recipeName)) {
-      props.setRecipeSelection([...props.recipeSelection, recipeName]);
-    }
-  };
+export const EfficientTreeSelection = (props: { tree: Tree | null }) => {
+  if (!props.tree) {
+    return null;
+  }
   return (
     <div>
-      <Select
-        options={props.tree.map((x, i) => ({
-          key: i,
-          value: i,
-          label: (
-            <>
-              <RoundedNumber number={props.tree[i].numberOfMachines} />
-              {" x "}
-              <b>
-                {findRecipeByName.get(x.recipeName)!.displayName}
-                {props.tree.length > 1 && "*"}
-              </b>
-            </>
-          ),
-        }))}
-        value={selectedRecipe}
-        onChange={onChange}
+      <div
         style={{
           width: "100%",
           border: "solid",
@@ -48,36 +16,37 @@ export const EfficientTreeSelection = (props: {
           margin: -1,
           padding: 3,
         }}
-      />
+      >
+        <RoundedNumber number={props.tree.numberOfMachines} />
+        {" x "}
+        <b>{findRecipeByName.get(props.tree.recipeName)!.displayName}</b>
+      </div>
       <div style={{ display: "flex" }}>
-        {props.tree[selectedRecipe]?.ingredients?.map((ingredientTree, i) => {
-          const isLeaf = ingredientTree.ingredientTree.length === 0;
+        {props.tree.ingredients?.map((ingredientTree, i) => {
+          const isLeaf = !ingredientTree.ingredientTree;
           return (
             <div key={i}>
-                <div
-                  style={{
-                    display: "flex",
-                    border: ingredientTree.rate < 0 ? "solid red" : "solid",
-                    margin: -1,
-                    padding: 5,
-                    whiteSpace: "nowrap",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "lightgray",
-                  }}
-                >
-                  <b>{productDisplayNameMapping.get(ingredientTree.product)}</b>
-                  {" ("}
-                  <RoundedNumber number={ingredientTree.rate} />
-                  {"/min)"}
-                </div>
+              <div
+                style={{
+                  display: "flex",
+                  border: ingredientTree.rate < 0 ? "solid red" : "solid",
+                  margin: -1,
+                  padding: 5,
+                  whiteSpace: "nowrap",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "lightgray",
+                }}
+              >
+                <b>{productDisplayNameMapping.get(ingredientTree.product)}</b>
+                {" ("}
+                <RoundedNumber number={ingredientTree.rate} />
+                {"/min)"}
+              </div>
               {!isLeaf && (
                 <EfficientTreeSelection
                   key={ingredientTree.product}
                   tree={ingredientTree.ingredientTree}
-                  addInputProduct={props.addInputProduct}
-                  recipeSelection={props.recipeSelection}
-                  setRecipeSelection={props.setRecipeSelection}
                 />
               )}
             </div>

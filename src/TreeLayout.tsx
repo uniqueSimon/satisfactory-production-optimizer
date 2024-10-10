@@ -10,11 +10,11 @@ const machineSizes = new Map([
   ["MANUFACTURER", { size: [18, 19], color: "orange" }],
 ]);
 
-export const TreeLayout = (props: { tree: Tree[]; scale: number }) => {
-  if (props.tree.length === 0) {
+export const TreeLayout = (props: { tree: Tree | null; scale: number }) => {
+  if (!props.tree) {
     return null;
   }
-  const bestBranch = props.tree[0];
+  const bestBranch = props.tree;
   const recipe = findRecipeByName.get(bestBranch.recipeName)!;
   const ceil = Math.ceil(bestBranch.numberOfMachines);
   return (

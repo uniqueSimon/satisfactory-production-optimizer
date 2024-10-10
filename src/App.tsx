@@ -32,7 +32,7 @@ export interface Tree {
   ingredients: {
     product: string;
     rate: number;
-    ingredientTree: Tree[];
+    ingredientTree: Tree | null;
   }[];
 }
 interface SavedSetting {
