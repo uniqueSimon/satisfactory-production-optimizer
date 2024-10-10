@@ -69,7 +69,7 @@ const convertRateUnits = (productName: string, rate: number) => {
   return rate;
 };
 const allRecipes: Recipe[] = [];
-const recipeNativeClass = gameData.find(
+const recipeNativeClass = (gameData as any[]).find(
   (x) =>
     x.NativeClass === "/Script/CoreUObject.Class'/Script/FactoryGame.FGRecipe'"
 );
@@ -101,7 +101,7 @@ for (const item of recipeNativeClass!.Classes) {
     );
     if (products.length === 2) {
       continue;
-      if (products[0].name !== "Water")
+      /* if (products[0].name !== "Water")
         allRecipes.push({
           recipeName,
           displayName: `${displayName} 1`,
@@ -131,7 +131,7 @@ for (const item of recipeNativeClass!.Classes) {
           time,
           producedIn,
         });
-      }
+      } */
     } else if (products.length === 1) {
       allRecipes.push({
         recipeName,
@@ -139,6 +139,7 @@ for (const item of recipeNativeClass!.Classes) {
         product: products[0],
         ingredients,
         time,
+        isAlternate: recipeName.includes("Alternate_"),
         producedIn,
       });
     } else {
@@ -146,7 +147,7 @@ for (const item of recipeNativeClass!.Classes) {
     }
   }
 }
-allRecipes.push({
+/* allRecipes.push({
   recipeName: "EfficientPlastic",
   displayName: "Efficient Plastic",
   product: { name: "Plastic", amount: 9 },
@@ -167,5 +168,5 @@ allRecipes.push({
   ],
   time: 9,
   producedIn: "CUSTOM",
-});
+}); */
 export { allRecipes };

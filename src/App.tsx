@@ -1,18 +1,29 @@
-import { Button, Checkbox, Form, InputNumber, Select, Typography } from "antd";
+import {
+  Button,
+  Checkbox,
+  Form,
+  InputNumber,
+  Radio,
+  Select,
+  Table,
+  Typography,
+} from "antd";
 import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
-import { narrowDownRecipes } from "./narrowDownRecipes";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
 import { ProducedIn, allRecipes } from "./allRecipesFromConfig";
 
 import { TreeBuilder } from "./TreeBuilder";
 import { useLocalStorage } from "./useLocalStorage";
 import { SavedSettingsButton } from "./SavedSettingsButton";
+import { useEffect, useState } from "react";
+
 export interface Recipe {
   recipeName: string;
   displayName: string;
   product: { name: string; amount: number };
   ingredients: { name: string; amount: number }[];
   time: number;
+  isAlternate: boolean;
   producedIn: ProducedIn | "CUSTOM";
 }
 export interface Tree {
@@ -28,11 +39,9 @@ interface SavedSetting {
   timestamp: number;
   productToProduce: string;
   wantedOutputRate: number;
-  currentResources: string[];
-  currentProducts: string[];
+  inputProducts: string[];
+  selectedAltRecipes: string[];
 }
-
-const defaultIncludedRecipes = [] as string[];
 
 export const findRecipeByName = new Map<string, Recipe>();
 for (const recipe of allRecipes) {
@@ -49,97 +58,69 @@ export const App = () => {
     "saved-settings",
     []
   );
-  const [productToProduce, setProductToProduce] = useLocalStorage(
-    "product-to-produce",
-    ""
-  );
-  const [wantedOutputRate, setWantedOutputRate] = useLocalStorage(
-    "wanted-output-rate",
-    60
-  );
-  const [includedRecipes, setIncludedRecipes] = useLocalStorage(
-    "included-recipes",
-    defaultIncludedRecipes
-  );
-  const [allRelevantRecipes, setAllRelevantRecipes] = useLocalStorage<Recipe[]>(
-    "all-relevant-recipes",
+  const [foundAltRecipes, setFoundAltRecipes] = useLocalStorage<string[]>(
+    "found-alt-recipes",
     []
   );
-  const [allRelevantResources, setAllRelevantResources] = useLocalStorage<
-    string[]
-  >("all-relevant-resources", []);
-  const [allRelevantProducts, setAllRelevantProducts] = useLocalStorage<
-    string[]
-  >("all-relevant-products", []);
-  const [currentRecipes, setCurrentRecipes] = useLocalStorage<Recipe[]>(
-    "current-recipes",
-    []
+  const [productToProduce, setProductToProduce] = useState("");
+  const [wantedOutputRate, setWantedOutputRate] = useState(60);
+  const [selectedAltRecipes, setSelectedAltRecipes] = useState<string[]>([]);
+  const [recipeSelection, setRecipeSelection] = useState(
+    new Map<string, { recipes: string[]; selected: string }>()
   );
-  const [currentProducts, setCurrentProducts] = useLocalStorage<string[]>(
-    "current-products",
-    []
-  );
-  const [currentResources, setCurrentResources] = useLocalStorage<string[]>(
-    "current-resources",
-    []
-  );
-  const onChangeProductToProduce = (chosenProduct: string) => {
-    setProductToProduce(chosenProduct);
-    const { usedProducts, usedRecipes, usedResources } =
+  const [allRelevantRecipes, setAllRelevantRecipes] = useState<Recipe[]>([]);
+  const [allRelevantProducts, setAllRelevantProducts] = useState<string[]>([]);
+  const [inputProducts, setInputProducts] = useState<string[]>([]);
+  const recalculateRelevantRecipes = (
+    chosenProduct: string,
+    foundAltRecipes: string[]
+  ) => {
+    const { relevantProducts, relevantRecipes } =
       findAllRelatedRecipesAndProducts(
         chosenProduct,
         allRecipes.filter(
-          (x) =>
-            !x.recipeName.includes("Alternate") ||
-            includedRecipes.includes(x.recipeName)
+          (x) => !x.isAlternate || foundAltRecipes.includes(x.recipeName)
         )
       );
-    setAllRelevantResources(usedResources);
-    setAllRelevantRecipes(usedRecipes);
-    setAllRelevantProducts(usedProducts);
-    setCurrentProducts([]);
-    setCurrentResources(usedResources);
-    setCurrentRecipes(usedRecipes);
+    setAllRelevantRecipes(relevantRecipes);
+    setAllRelevantProducts(relevantProducts);
+    setInputProducts([]);
   };
-  const updateResourcesAndRecipes = (
-    resources: string[],
-    inputProducts: string[]
-  ) => {
-    setCurrentResources(resources);
-    setCurrentProducts(inputProducts);
-    const { usedRecipes } = narrowDownRecipes(
-      productToProduce,
-      allRelevantRecipes,
-      resources,
-      inputProducts
-    );
-    setCurrentRecipes(usedRecipes);
-  };
+  useEffect(() => {
+    if (productToProduce) {
+      const groupedRecipes = new Map<
+        string,
+        { recipes: string[]; selected: string }
+      >();
+      for (const product of [productToProduce, ...allRelevantProducts]) {
+        const recipes = allRelevantRecipes.filter(
+          (x) => x.product.name === product
+        );
+        const foundSelection = recipes.find((x) =>
+          selectedAltRecipes.includes(x.recipeName)
+        );
+        groupedRecipes.set(product, {
+          recipes: recipes.map((x) => x.recipeName),
+          selected:
+            foundSelection?.recipeName ??
+            recipes.find((x) => !x.isAlternate)!.recipeName,
+        });
+      }
+      setRecipeSelection(groupedRecipes);
+    }
+  }, [allRelevantRecipes, allRelevantProducts]);
   const onChooseSavedSetting = (setting: SavedSetting) => {
     setProductToProduce(setting.productToProduce);
     setWantedOutputRate(setting.wantedOutputRate);
-    const { usedProducts, usedRecipes, usedResources } =
-      findAllRelatedRecipesAndProducts(
-        setting.productToProduce,
-        allRecipes.filter(
-          (x) =>
-            !x.recipeName.includes("Alternate") ||
-            includedRecipes.includes(x.recipeName)
-        )
-      );
-    setAllRelevantResources(usedResources);
-    setAllRelevantRecipes(usedRecipes);
-    setAllRelevantProducts(usedProducts);
-    const { usedRecipes: usedRecipesNarrowed } = narrowDownRecipes(
-      setting.productToProduce,
-      usedRecipes,
-      setting.currentResources,
-      setting.currentProducts
-    );
-    setCurrentRecipes(usedRecipesNarrowed);
-    setCurrentResources(setting.currentResources);
-    setCurrentProducts(setting.currentProducts);
+    setSelectedAltRecipes(setting.selectedAltRecipes);
+    setInputProducts(setting.inputProducts);
+    recalculateRelevantRecipes(setting.productToProduce, foundAltRecipes);
   };
+  const selectedRecipes: Recipe[] = [];
+  recipeSelection.forEach((value) => {
+    const recipe = findRecipeByName.get(value.selected)!;
+    selectedRecipes.push(recipe);
+  });
   return (
     <div style={{ margin: 10 }}>
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
@@ -153,8 +134,8 @@ export const App = () => {
                   timestamp: Date.now(),
                   productToProduce,
                   wantedOutputRate,
-                  currentResources,
-                  currentProducts,
+                  inputProducts,
+                  selectedAltRecipes,
                 },
               ]);
             }}
@@ -194,7 +175,10 @@ export const App = () => {
                 label: productDisplayNameMapping.get(x)!,
               }))}
               value={productToProduce}
-              onChange={onChangeProductToProduce}
+              onChange={(chosenProduct) => {
+                setProductToProduce(chosenProduct);
+                recalculateRelevantRecipes(chosenProduct, foundAltRecipes);
+              }}
               filterOption={(input, option) =>
                 option!.label.toLowerCase().includes(input.toLowerCase())
               }
@@ -208,64 +192,68 @@ export const App = () => {
               />
             </Form.Item>
           </div>
-          <Form.Item label="Recipes to include" style={{ width: 500 }}>
+          <Form.Item label="Found alternate recipes" style={{ width: 500 }}>
             <Select
               mode="multiple"
               allowClear={true}
               options={allRecipes
-                .filter((x) => x.recipeName.includes("Alternate"))
-                .map((x) => ({
-                  key: x.recipeName,
+                .filter((x) => x.isAlternate)
+                .map((x, i) => ({
+                  key: i,
                   value: x.recipeName,
                   label: x.displayName,
                 }))}
-              value={includedRecipes}
-              onChange={(x) => setIncludedRecipes(x)}
+              value={foundAltRecipes}
+              onChange={(x) => {
+                setFoundAltRecipes(x);
+                recalculateRelevantRecipes(productToProduce, x);
+              }}
             />
           </Form.Item>
         </div>
-        <Form.Item label="Input resources">
-          <Checkbox
-            style={{ marginRight: 8 }}
-            onChange={(e) =>
-              updateResourcesAndRecipes(
-                e.target.checked ? allRelevantResources : [],
-                currentProducts
-              )
-            }
-            checked={currentResources.length === allRelevantResources.length}
-            indeterminate={
-              currentResources.length !== allRelevantResources.length &&
-              currentResources.length > 0
-            }
-          >
-            Select all
-          </Checkbox>
-          <Checkbox.Group
-            options={allRelevantResources.map((x) => ({
-              key: x,
-              value: x,
-              label: productDisplayNameMapping.get(x),
-            }))}
-            value={currentResources}
-            onChange={(resources) =>
-              updateResourcesAndRecipes(resources, currentProducts)
-            }
-          />
-        </Form.Item>
+        <Table
+          columns={[
+            { dataIndex: "product", title: "Product" },
+            { dataIndex: "selection", title: "Selection" },
+          ]}
+          dataSource={Array.from(recipeSelection).map((x, i) => ({
+            key: i,
+            product: x[0],
+            selection: (
+              <Radio.Group
+                options={x[1].recipes.map((y) => ({
+                  label: y,
+                  value: y,
+                }))}
+                value={x[1].selected}
+                onChange={(e) => {
+                  setRecipeSelection((prev) => {
+                    const prevEntry = prev.get(x[0])!;
+                    const newAltSelection = selectedAltRecipes.filter(
+                      (x) => x !== prevEntry.selected
+                    );
+                    if (e.target.value.includes("Alternate_")) {
+                      newAltSelection.push(e.target.value);
+                    }
+                    setSelectedAltRecipes(newAltSelection);
+                    prev.set(x[0], { ...prevEntry, selected: e.target.value });
+                    return new Map(prev);
+                  });
+                }}
+              />
+            ),
+          }))}
+        />
         <Form.Item label="Input products">
           <Checkbox
             style={{ marginRight: 8 }}
             onChange={(e) =>
-              updateResourcesAndRecipes(
-                currentResources,
-                e.target.checked ? allRelevantProducts : []
-              )
+              setInputProducts(e.target.checked ? allRelevantProducts : [])
             }
-            checked={currentProducts.length === allRelevantProducts.length}
+            checked={inputProducts.length === allRelevantProducts.length}
             indeterminate={
-              currentProducts.length !== allRelevantProducts.length &&
-              currentProducts.length > 0
+              inputProducts.length !== allRelevantProducts.length &&
+              inputProducts.length > 0
             }
           >
             Select all
@@ -276,26 +264,18 @@ export const App = () => {
               value: x,
               label: productDisplayNameMapping.get(x),
             }))}
-            value={currentProducts}
-            onChange={(products) =>
-              updateResourcesAndRecipes(currentResources, products)
-            }
+            value={inputProducts}
+            onChange={(products) => setInputProducts(products)}
           />
         </Form.Item>
         <TreeBuilder
-          currentRecipes={currentRecipes}
+          currentRecipes={selectedRecipes}
           allRelevantRecipes={allRelevantRecipes}
           productToProduce={productToProduce}
           wantedOutputRate={wantedOutputRate}
-          currentProducts={currentProducts}
-          removeResource={(resource) =>
-            updateResourcesAndRecipes(
-              currentResources.filter((x) => x !== resource),
-              currentProducts
-            )
-          }
+          currentProducts={inputProducts}
           addInputProduct={(product) =>
-            setCurrentProducts([...currentProducts, product])
+            setInputProducts([...inputProducts, product])
           }
         />
       </Form>

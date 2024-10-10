@@ -2,14 +2,26 @@ import { useState } from "react";
 import { Tree, findRecipeByName } from "./App";
 import { Select, Tooltip } from "antd";
 import { productDisplayNameMapping } from "./getProductDisplayNames";
-import { ContainerOverlay } from "./ContainerOverlay";
 
 export const EfficientTreeSelection = (props: {
   tree: Tree[];
-  removeResource: (resource: string) => void;
+  recipeSelection: string[];
+  setRecipeSelection: (recipeSelection: string[]) => void;
   addInputProduct: (product: string) => void;
 }) => {
-  const [selectedRecipe, setSelectedRecipe] = useState(0);
+  const index = props.tree.findIndex((x) =>
+    props.recipeSelection.includes(x.recipeName)
+  );
+  const [selectedRecipe, setSelectedRecipe] = useState(
+    index === -1 ? 0 : index
+  );
+  const onChange = (selectedRecipe: number) => {
+    setSelectedRecipe(selectedRecipe);
+    const recipeName = props.tree[selectedRecipe].recipeName;
+    if (!props.recipeSelection.includes(recipeName)) {
+      props.setRecipeSelection([...props.recipeSelection, recipeName]);
+    }
+  };
   return (
     <div>
       <Select
@@ -28,7 +40,7 @@ export const EfficientTreeSelection = (props: {
           ),
         }))}
         value={selectedRecipe}
-        onChange={setSelectedRecipe}
+        onChange={onChange}
         style={{
           width: "100%",
           border: "solid",
@@ -42,14 +54,6 @@ export const EfficientTreeSelection = (props: {
           const isLeaf = ingredientTree.ingredientTree.length === 0;
           return (
             <div key={i}>
-              <ContainerOverlay
-                icon={isLeaf ? "CLOSE" : "ADD"}
-                onClick={() =>
-                  isLeaf
-                    ? props.removeResource(ingredientTree.product)
-                    : props.addInputProduct(ingredientTree.product)
-                }
-              >
                 <div
                   style={{
                     display: "flex",
@@ -67,13 +71,13 @@ export const EfficientTreeSelection = (props: {
                   <RoundedNumber number={ingredientTree.rate} />
                   {"/min)"}
                 </div>
-              </ContainerOverlay>
               {!isLeaf && (
                 <EfficientTreeSelection
                   key={ingredientTree.product}
                   tree={ingredientTree.ingredientTree}
-                  removeResource={props.removeResource}
                   addInputProduct={props.addInputProduct}
+                  recipeSelection={props.recipeSelection}
+                  setRecipeSelection={props.setRecipeSelection}
                 />
               )}
             </div>

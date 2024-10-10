@@ -12,16 +12,7 @@ interface Props {
   currentRecipes: Recipe[];
   currentProducts: string[];
   allRelevantRecipes: Recipe[];
-  removeResource: (resource: string) => void;
   addInputProduct: (product: string) => void;
-}
-
-export interface TreeSelection {
-  recipeName: string;
-  ingredients: {
-    product: string;
-    ingredientTree: TreeSelection;
-  }[];
 }
 
 export const TreeBuilder = (props: Props) => {
@@ -33,7 +24,7 @@ export const TreeBuilder = (props: Props) => {
     props.allRelevantRecipes
   );
   const [scale, setScale] = useState(3);
-  const [treeSelection, setTreeSelection] = useState<TreeSelection>();
+  const [recipeSelection, setRecipeSelection] = useState<string[]>([]);
   return (
     <>
       {/* <LinkToCalculator
@@ -46,8 +37,9 @@ export const TreeBuilder = (props: Props) => {
         <EfficientTreeSelection
           key={JSON.stringify(tree)}
           tree={tree}
-          removeResource={props.removeResource}
           addInputProduct={props.addInputProduct}
+          recipeSelection={recipeSelection}
+          setRecipeSelection={setRecipeSelection}
         />
       </div>
       <div style={{ height: 50 }}></div>

@@ -4,21 +4,21 @@ export const findAllRelatedRecipesAndProducts = (
   product: string,
   recipes: Recipe[]
 ) => {
-  const usedRecipes: Recipe[] = [];
-  const usedProducts: string[] = [];
-  const usedResources = new Set<string>();
+  const relevantRecipes: Recipe[] = [];
+  const relevantProducts: string[] = [];
+  const relevantResources = new Set<string>();
   const recursion = (curProduct: string) => {
-    if (usedProducts.includes(curProduct)) {
+    if (relevantProducts.includes(curProduct)) {
       return;
     }
     const viableRecipes = recipes.filter((x) => x.product.name === curProduct);
     if (viableRecipes.length === 0) {
-      usedResources.add(curProduct);
+      relevantResources.add(curProduct);
     } else {
-      usedProducts.push(curProduct);
+      relevantProducts.push(curProduct);
     }
     for (const recipe of viableRecipes) {
-      usedRecipes.push(recipe);
+      relevantRecipes.push(recipe);
       for (const ingredient of recipe.ingredients) {
         recursion(ingredient.name);
       }
@@ -26,8 +26,8 @@ export const findAllRelatedRecipesAndProducts = (
   };
   recursion(product);
   return {
-    usedRecipes,
-    usedProducts: usedProducts.filter((x) => x !== product),
-    usedResources: [...usedResources],
+    relevantRecipes,
+    relevantProducts: relevantProducts.filter((x) => x !== product),
+    relevantResources: [...relevantResources],
   };
 };
