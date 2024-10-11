@@ -26,15 +26,6 @@ export interface Recipe {
   isAlternate: boolean;
   producedIn: ProducedIn | "CUSTOM";
 }
-export interface Tree {
-  recipeName: string;
-  numberOfMachines: number;
-  ingredients: {
-    product: string;
-    rate: number;
-    ingredientTree: Tree | null;
-  }[];
-}
 interface SavedSetting {
   timestamp: number;
   productToProduce: string;

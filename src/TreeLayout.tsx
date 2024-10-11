@@ -1,5 +1,6 @@
 import { Tooltip } from "antd";
-import { Tree, findRecipeByName } from "./App";
+import { findRecipeByName } from "./App";
+import { Tree } from "./TreeBuilder";
 
 const machineSizes = new Map([
   ["SMELTER", { size: [6, 9], color: "grey" }],

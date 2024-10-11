@@ -1,10 +1,19 @@
-import { Button, Form, InputNumber } from "antd";
-import { Recipe, Tree } from "./App";
+import { Form, InputNumber } from "antd";
+import { Recipe } from "./App";
 import { buildTree } from "./buildTree";
-import { SelectOutlined } from "@ant-design/icons";
 import { EfficientTreeSelection } from "./EfficientTreeSelection";
 import { TreeLayout } from "./TreeLayout";
 import { useState } from "react";
+
+export interface Tree {
+  recipeName: string;
+  numberOfMachines: number;
+  ingredients: {
+    product: string;
+    rate: number;
+    ingredientTree: Tree | null;
+  }[];
+}
 
 interface Props {
   productToProduce: string;
@@ -15,6 +24,21 @@ interface Props {
   addInputProduct: (product: string) => void;
 }
 
+const getResourceRates = (tree: Tree | null) => {
+  const resources = new Map<string, number>();
+  const findResourcesFromTree = (tree: Tree) => {
+    for (const ingredient of tree.ingredients) {
+      if (!ingredient.ingredientTree) {
+        const acc = resources.get(ingredient.product);
+        resources.set(ingredient.product, (acc ?? 0) + ingredient.rate);
+      } else {
+        findResourcesFromTree(ingredient.ingredientTree);
+      }
+    }
+  };
+  tree && findResourcesFromTree(tree);
+  return resources;
+};
 export const TreeBuilder = (props: Props) => {
   const tree = buildTree(
     props.productToProduce,
@@ -24,8 +48,15 @@ export const TreeBuilder = (props: Props) => {
     props.allRelevantRecipes
   );
   const [scale, setScale] = useState(3);
+  const resourceRates = getResourceRates(tree);
   return (
     <>
+      {[...resourceRates.entries()].map((x, i) => (
+        <div key={i}>
+          <div>{x[0]}</div>
+          <div>{x[1]}</div>
+        </div>
+      ))}
       {/* <LinkToCalculator
         productToProduce={props.productToProduce}
         wantedOutputRate={props.wantedOutputRate}

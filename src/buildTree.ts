@@ -1,4 +1,5 @@
-import { Recipe, Tree } from "./App";
+import { Recipe } from "./App";
+import { Tree } from "./TreeBuilder";
 
 export const buildTree = (
   product: string,
