@@ -21,7 +21,6 @@ interface Props {
   currentRecipes: Recipe[];
   currentProducts: string[];
   allRelevantRecipes: Recipe[];
-  addInputProduct: (product: string) => void;
 }
 
 const getResourceRates = (tree: Tree | null) => {
