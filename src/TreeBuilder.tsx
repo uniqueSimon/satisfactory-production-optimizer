@@ -20,7 +20,6 @@ interface Props {
   wantedOutputRate: number;
   currentRecipes: Recipe[];
   currentProducts: string[];
-  allRelevantRecipes: Recipe[];
 }
 
 const getResourceRates = (tree: Tree | null) => {
@@ -44,7 +43,6 @@ export const TreeBuilder = (props: Props) => {
     props.wantedOutputRate,
     props.currentRecipes,
     props.currentProducts,
-    props.allRelevantRecipes
   );
   const [scale, setScale] = useState(3);
   const resourceRates = getResourceRates(tree);

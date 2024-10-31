@@ -26,7 +26,7 @@ export enum ProducedIn {
 const defaultExcludedRecipes = [
   "Alternate_Coal_1", //requires wood
   "Alternate_Coal_2", //requires biomass
-  "Alternate_Plastic_1", //to avoid loop
+  //"Alternate_Plastic_1", //to avoid loop
   "Alternate_RecycledRubber", //to avoid loop
   "Alternate_DilutedFuel",
   "Alternate_RocketFuel_Nitro2",
@@ -100,21 +100,27 @@ for (const item of recipeNativeClass!.Classes) {
       getProductAndAmount(product)
     );
     if (products.length === 2) {
-      continue;
-      /* if (products[0].name !== "Water")
+      if (
+        products[0].name !== "Water" &&
+        !["Plastic", "Rubber"].includes(products[1].name)
+      )
         allRecipes.push({
           recipeName,
-          displayName: `${displayName} 1`,
+          displayName,
           product: products[0],
           ingredients: [
             ...ingredients,
             { name: products[1].name, amount: -products[1].amount },
           ],
           time,
+          isAlternate:
+            recipeName.includes("Alternate_") ||
+            recipeName.includes("Residual"),
           producedIn,
         });
       if (
         products[1].name !== "Water" &&
+        !["Plastic", "Rubber"].includes(products[0].name) &&
         !(
           recipeName === "UraniumCell" && products[1].name === "SulfuricAcid"
         ) &&
@@ -129,9 +135,12 @@ for (const item of recipeNativeClass!.Classes) {
             { name: products[0].name, amount: -products[0].amount },
           ],
           time,
+          isAlternate:
+            recipeName.includes("Alternate_") ||
+            recipeName.includes("Residual"),
           producedIn,
         });
-      } */
+      }
     } else if (products.length === 1) {
       allRecipes.push({
         recipeName,
@@ -139,7 +148,8 @@ for (const item of recipeNativeClass!.Classes) {
         product: products[0],
         ingredients,
         time,
-        isAlternate: recipeName.includes("Alternate_"),
+        isAlternate:
+          recipeName.includes("Alternate_") || recipeName.includes("Residual"),
         producedIn,
       });
     } else {

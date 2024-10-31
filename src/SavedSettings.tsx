@@ -20,7 +20,6 @@ export const SavedSettings = (props: {
   setWantedOutputRate: (wantedOutputRate: number) => void;
   setInputProducts: (inputProducts: string[]) => void;
   setSelectedAltRecipes: (selectedAltRecipes: string[]) => void;
-  recalculateRelevantRecipes: (productToProduce: string) => void;
 }) => {
   const [savedSettings, setSavedSettings] = useLocalStorage<SavedSetting[]>(
     "saved-settings",
@@ -31,7 +30,6 @@ export const SavedSettings = (props: {
     props.setWantedOutputRate(setting.wantedOutputRate);
     props.setSelectedAltRecipes(setting.selectedAltRecipes);
     props.setInputProducts(setting.inputProducts);
-    props.recalculateRelevantRecipes(setting.productToProduce);
   };
   return (
     <>
@@ -58,7 +56,7 @@ export const SavedSettings = (props: {
           {savedSettings.map((setting) => (
             <SavedSettingsButton
               key={setting.timestamp}
-              label={productDisplayNameMapping.get(setting.productToProduce)!}
+              label={`${setting.wantedOutputRate} ${productDisplayNameMapping.get(setting.productToProduce)!}`}
               onSelect={() => onChooseSavedSetting(setting)}
               onDelete={() => {
                 setSavedSettings(

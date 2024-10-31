@@ -6,7 +6,6 @@ export const buildTree = (
   rate: number,
   recipes: Recipe[],
   inputProducts: string[],
-  allRelevantRecipes: Recipe[]
 ): Tree | null => {
   if (inputProducts.includes(product)) {
     return null;
@@ -27,7 +26,6 @@ export const buildTree = (
       ingredientRate,
       recipes,
       inputProducts,
-      allRelevantRecipes
     );
     recipeTree.ingredients.push({
       product: ingredient.name,
