@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { Form, InputNumber, Select, Typography } from "antd";
-import { findAllRelatedRecipesAndProducts } from "./findAllRelatedRecipes";
-import { ProducedIn, allRecipes } from "./allRecipesFromConfig";
-
-import { useLocalStorage } from "./useLocalStorage";
-import { useEffect, useState } from "react";
-import { RecipeSelection } from "./RecipeSelection";
-import { InputProducts } from "./InputProducts";
-import { SavedSettings } from "./SavedSettings";
-import { ProductToProduce } from "./ProductToProduce";
+import { allRecipes } from "./parseGameData/allRecipesFromConfig";
+import { useLocalStorage } from "./reusableComp/useLocalStorage";
+import { SavedSettings } from "./components/SavedSettings";
+import { ProductToProduce } from "./components/ProductToProduce";
+import { EfficientTreeSelection } from "./components/EfficientTreeSelection";
+import { NeededResources } from "./components/NeededRessources";
+import { DedicatedProducts } from "./components/DedicatedProducts";
+import { calculateTreeResults } from "./calculateTreeResults";
+import { AlternateRecipes } from "./components/AlternateRecipes";
+import { CustomCard } from "./reusableComp/CustomCard";
 
 export interface Recipe {
   recipeName: string;
@@ -16,11 +18,7 @@ export interface Recipe {
   ingredients: { name: string; amount: number }[];
   time: number;
   isAlternate: boolean;
-  producedIn: ProducedIn | "CUSTOM";
-}
-export const findRecipeByName = new Map<string, Recipe>();
-for (const recipe of allRecipes) {
-  findRecipeByName.set(recipe.recipeName, recipe);
+  producedIn: string;
 }
 
 export const App = () => {
@@ -30,151 +28,110 @@ export const App = () => {
   );
   const [productToProduce, setProductToProduce] = useState("");
   const [wantedOutputRate, setWantedOutputRate] = useState(60);
-  const [selectedAltRecipes, setSelectedAltRecipes] = useState<string[]>([]);
-  const [inputProducts, setInputProducts] = useState<string[]>([]);
-
-  const { relevantProducts, relevantRecipes } =
-    findAllRelatedRecipesAndProducts(
-      productToProduce,
-      allRecipes.filter(
-        (x) => !x.isAlternate || foundAltRecipes.includes(x.recipeName)
-      )
-    );
-
+  const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
+  const [dedicatedProducts, setDedicatedProducts] = useState<string[]>([]);
+  const availableRecipes = allRecipes.filter(
+    (x) => !x.isAlternate || foundAltRecipes.includes(x.recipeName)
+  );
+  const { machines, productRates } = calculateTreeResults(
+    productToProduce,
+    wantedOutputRate,
+    selectedRecipes,
+    availableRecipes
+  );
   return (
-    <div style={{ border: "solid" }}>
+    <div
+      style={{
+        border: "solid",
+        padding: 10,
+        borderRadius: 8,
+        backgroundColor: "white",
+      }}
+    >
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
         <SavedSettings
-          inputProducts={inputProducts}
+          dedicatedProducts={dedicatedProducts}
           productToProduce={productToProduce}
-          selectedAltRecipes={selectedAltRecipes}
-          setInputProducts={setInputProducts}
-          setProductToProduce={setProductToProduce}
-          setSelectedAltRecipes={setSelectedAltRecipes}
-          setWantedOutputRate={setWantedOutputRate}
+          selectedRecipes={selectedRecipes}
           wantedOutputRate={wantedOutputRate}
+          setProductToProduce={setProductToProduce}
+          setSelectedRecipes={setSelectedRecipes}
+          setWantedOutputRate={setWantedOutputRate}
+          setDedicatedProducts={setDedicatedProducts}
         />
-        <div style={{ display: "flex" }}>
-          <ProductToProduce
-            productToProduce={productToProduce}
-            setProductToProduce={setProductToProduce}
-          />
-          <div>
-            <Form.Item label="Output rate (1/min)" style={{ width: 250 }}>
+        <AlternateRecipes
+          foundAltRecipes={foundAltRecipes}
+          setFoundAltRecipes={setFoundAltRecipes}
+        />
+        <CustomCard>
+          <div style={{ display: "flex" }}>
+            <ProductToProduce
+              productToProduce={productToProduce}
+              setProductToProduce={(product) => {
+                setSelectedRecipes([]);
+                setDedicatedProducts([]);
+                setProductToProduce(product);
+              }}
+            />
+            <Form.Item label="Output rate (1/min)">
               <InputNumber
                 value={wantedOutputRate}
                 onChange={(x) => setWantedOutputRate(x ?? 0)}
+                style={{ width: 250 }}
               />
             </Form.Item>
           </div>
-          <Form.Item label="Found alternate recipes" style={{ width: 500 }}>
+          <Form.Item label="Selected recipes">
             <Select
               mode="multiple"
               allowClear={true}
-              options={allRecipes
-                .filter((x) => x.isAlternate)
-                .map((x, i) => ({
-                  key: i,
-                  value: x.recipeName,
-                  label: x.displayName,
-                }))}
-              value={foundAltRecipes}
-              onChange={setFoundAltRecipes}
+              options={allRecipes.map((x) => ({
+                key: x.recipeName,
+                value: x.recipeName,
+                label: x.displayName,
+              }))}
+              value={selectedRecipes}
+              onChange={setSelectedRecipes}
             />
           </Form.Item>
-        </div>
-        <App2
-          allRelevantRecipes={relevantRecipes}
-          allRelevantProducts={relevantProducts}
-          productToProduce={productToProduce}
-          selectedAltRecipes={selectedAltRecipes}
-          setSelectedAltRecipes={setSelectedAltRecipes}
-          inputProducts={inputProducts}
-          setInputProducts={setInputProducts}
-          wantedOutputRate={wantedOutputRate}
-        />
+          {productToProduce && (
+            <DedicatedProducts
+              currentProducts={[...productRates.entries()]
+                .filter((x) => x[1].type === "MULTIPLE")
+                .map((x) => x[0])}
+              dedicatedProducts={dedicatedProducts}
+              setDedicatedProducts={setDedicatedProducts}
+            />
+          )}
+        </CustomCard>
       </Form>
+      {productToProduce && (
+        <>
+          <NeededResources machines={machines} productRates={productRates} />
+          <EfficientTreeSelection
+            dedicatedProducts={dedicatedProducts}
+            productToProduce={productToProduce}
+            selectedRecipes={selectedRecipes}
+            availableRecipes={availableRecipes}
+            wantedOutputRate={wantedOutputRate}
+            setSelectedRecipes={setSelectedRecipes}
+          />
+          <div style={{ display: "flex" }}>
+            {dedicatedProducts.map((product) => (
+              <EfficientTreeSelection
+                key={product}
+                dedicatedProducts={dedicatedProducts}
+                productToProduce={product}
+                selectedRecipes={selectedRecipes}
+                availableRecipes={availableRecipes}
+                wantedOutputRate={productRates.get(product)!.rate}
+                setSelectedRecipes={setSelectedRecipes}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
-  );
-};
-const App2 = (props: {
-  allRelevantRecipes: Recipe[];
-  allRelevantProducts: string[];
-  productToProduce: string;
-  selectedAltRecipes: string[];
-  setSelectedAltRecipes: (selectedAltRecipes: string[]) => void;
-  inputProducts: string[];
-  setInputProducts: (inputProducts: string[]) => void;
-  wantedOutputRate: number;
-}) => {
-  return (
-    <div style={{ border: "solid" }}>
-      <InputProducts
-        allRelevantProducts={props.allRelevantProducts}
-        inputProducts={props.inputProducts}
-        setInputProducts={props.setInputProducts}
-      />
-      <App1
-        allRelevantRecipes={props.allRelevantRecipes}
-        allRelevantProducts={props.allRelevantProducts}
-        productToProduce={props.productToProduce}
-        selectedAltRecipes={props.selectedAltRecipes}
-        setSelectedAltRecipes={props.setSelectedAltRecipes}
-        inputProducts={props.inputProducts}
-        wantedOutputRate={props.wantedOutputRate}
-      />
-    </div>
-  );
-};
-const App1 = (props: {
-  allRelevantRecipes: Recipe[];
-  allRelevantProducts: string[];
-  productToProduce: string;
-  selectedAltRecipes: string[];
-  setSelectedAltRecipes: (selectedAltRecipes: string[]) => void;
-  inputProducts: string[];
-  wantedOutputRate: number;
-}) => {
-  const [recipeSelection, setRecipeSelection] = useState(
-    new Map<string, { recipes: string[]; selected: string }>()
-  );
-  useEffect(() => {
-    if (props.allRelevantRecipes.length) {
-      const groupedRecipes = new Map<
-        string,
-        { recipes: string[]; selected: string }
-      >();
-      for (const product of [
-        props.productToProduce,
-        ...props.allRelevantProducts,
-      ]) {
-        const recipes = props.allRelevantRecipes.filter(
-          (x) => x.product.name === product
-        );
-        const foundSelection = recipes.find((x) =>
-          props.selectedAltRecipes.includes(x.recipeName)
-        );
-        groupedRecipes.set(product, {
-          recipes: recipes.map((x) => x.recipeName),
-          selected:
-            foundSelection?.recipeName ??
-            recipes.find((x) => !x.isAlternate)!.recipeName,
-        });
-      }
-      setRecipeSelection(groupedRecipes);
-    }
-  }, [props.allRelevantRecipes, props.allRelevantProducts]);
-
-  return (
-    <RecipeSelection
-      recipeSelection={recipeSelection}
-      selectedAltRecipes={props.selectedAltRecipes}
-      setRecipeSelection={setRecipeSelection}
-      setSelectedAltRecipes={props.setSelectedAltRecipes}
-      inputProducts={props.inputProducts}
-      productToProduce={props.productToProduce}
-      wantedOutputRate={props.wantedOutputRate}
-    />
   );
 };

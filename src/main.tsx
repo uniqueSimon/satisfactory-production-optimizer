@@ -4,6 +4,8 @@ import { App } from "./App.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <div style={{ padding: 5, backgroundColor: "grey", borderRadius: 8 }}>
+      <App />
+    </div>
   </React.StrictMode>
 );
