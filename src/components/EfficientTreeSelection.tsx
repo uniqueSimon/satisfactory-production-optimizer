@@ -2,6 +2,7 @@ import { Select, Tooltip } from "antd";
 import { productDisplayNameMapping } from "../parseGameData/getProductDisplayNames";
 import { Recipe } from "../App";
 import { RecipeTooltip } from "../reusableComp/RecipeTooltip";
+import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 
 export const EfficientTreeSelection = (props: {
   productToProduce: string;
@@ -104,14 +105,7 @@ const ProductBox = (props: {
   >
     {Math.round(props.rate * 10000) / 10000}
     {"/min"}
-    <Tooltip title={productDisplayNameMapping.get(props.product)}>
-      <img
-        src={`items/desc-${props.product
-          .toLowerCase()
-          .replace("_", "-")}-c_64.png`}
-        style={{ height: 30, marginLeft: 5 }}
-      />
-    </Tooltip>
+    <IconWithTooltip item={props.product} />
   </div>
 );
 
@@ -151,12 +145,7 @@ const RecipeSelection = (props: {
         {Math.round(numberOfMachines * 1000000) / 1000000}
         <span style={{ margin: "0 5px" }}>x</span>
         <RecipeTooltip recipe={recipe} />
-        <Tooltip title={recipe.producedIn}>
-          <img
-            src={`items/desc-${recipe.producedIn.toLowerCase()}-c_64.png`}
-            style={{ height: 30, marginLeft: 5 }}
-          />
-        </Tooltip>
+        <IconWithTooltip item={recipe.producedIn} />
       </div>
     );
   } else {
@@ -181,12 +170,7 @@ const RecipeSelection = (props: {
                 {Math.round(numberOfMachines * 1000000) / 1000000}
                 <span style={{ margin: "0 5px" }}>x</span>
                 <RecipeTooltip recipe={x} />
-                <Tooltip title={x.producedIn}>
-                  <img
-                    src={`items/desc-${x.producedIn.toLowerCase()}-c_64.png`}
-                    style={{ height: 30, marginLeft: 5 }}
-                  />
-                </Tooltip>
+                <IconWithTooltip item={x.producedIn} />
               </div>
             ),
           };

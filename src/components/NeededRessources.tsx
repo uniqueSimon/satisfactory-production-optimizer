@@ -1,6 +1,6 @@
-import { Table, Tooltip } from "antd";
+import { Table } from "antd";
 import { RoundedNumber } from "../reusableComp/RoundedNumber";
-import { productDisplayNameMapping } from "../parseGameData/getProductDisplayNames";
+import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 
 enum MachineSpace {
   ManufacturerMk1 = 360,
@@ -32,16 +32,7 @@ export const NeededResources = (props: {
           {
             dataIndex: "resource",
             title: "Input resource",
-            render: (resource) => (
-              <Tooltip title={productDisplayNameMapping.get(resource)}>
-                <img
-                  src={`items/desc-${resource
-                    .toLowerCase()
-                    .replace("_", "-")}-c_64.png`}
-                  style={{ height: 30, marginLeft: 5 }}
-                />
-              </Tooltip>
-            ),
+            render: (resource) => <IconWithTooltip item={resource} />,
           },
           {
             dataIndex: "rate",
@@ -68,12 +59,7 @@ export const NeededResources = (props: {
               producedIn === "Weighted sum" ? (
                 "Weighted sum"
               ) : (
-                <Tooltip title={producedIn}>
-                  <img
-                    src={`items/desc-${producedIn.toLowerCase()}-c_64.png`}
-                    style={{ height: 30, marginLeft: 5 }}
-                  />
-                </Tooltip>
+                <IconWithTooltip item={producedIn} />
               ),
           },
           {
