@@ -1,8 +1,8 @@
-import { Select, Tooltip } from "antd";
-import { productDisplayNameMapping } from "../parseGameData/getProductDisplayNames";
+import { Select } from "antd";
 import { Recipe } from "../App";
 import { RecipeTooltip } from "../reusableComp/RecipeTooltip";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
+import { DownCircleOutlined } from "@ant-design/icons";
 
 export const EfficientTreeSelection = (props: {
   productToProduce: string;
@@ -133,19 +133,26 @@ const RecipeSelection = (props: {
           alignItems: "center",
           justifyContent: "center",
         }}
-        onClick={() => {
-          if (!props.currentRecipe) {
-            props.setSelectedRecipes([
-              ...props.selectedRecipes,
-              recipe.recipeName,
-            ]);
-          }
-        }}
       >
-        {Math.round(numberOfMachines * 1000000) / 1000000}
-        <span style={{ margin: "0 5px" }}>x</span>
-        <RecipeTooltip recipe={recipe} />
-        <IconWithTooltip item={recipe.producedIn} />
+        {props.currentRecipe ? (
+          <>
+            {Math.round(numberOfMachines * 1000000) / 1000000}
+            <span style={{ margin: "0 5px" }}>x</span>
+            <RecipeTooltip recipe={recipe} />
+            <IconWithTooltip item={recipe.producedIn} />
+          </>
+        ) : (
+          <DownCircleOutlined
+            onClick={() => {
+              if (!props.currentRecipe) {
+                props.setSelectedRecipes([
+                  ...props.selectedRecipes,
+                  recipe.recipeName,
+                ]);
+              }
+            }}
+          />
+        )}
       </div>
     );
   } else {

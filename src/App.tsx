@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Form, InputNumber, Select, Typography } from "antd";
+import { Form, Select, Typography } from "antd";
 import { allRecipes } from "./parseGameData/allRecipesFromConfig";
 import { useLocalStorage } from "./reusableComp/useLocalStorage";
 import { SavedSettings } from "./components/SavedSettings";
@@ -10,6 +10,7 @@ import { DedicatedProducts } from "./components/DedicatedProducts";
 import { calculateTreeResults } from "./calculateTreeResults";
 import { AlternateRecipes } from "./components/AlternateRecipes";
 import { CustomCard } from "./reusableComp/CustomCard";
+import { OutputRate } from "./components/OutputRate";
 
 export interface Recipe {
   recipeName: string;
@@ -38,6 +39,11 @@ export const App = () => {
     wantedOutputRate,
     selectedRecipes,
     availableRecipes
+  );
+  const rootRecipe = availableRecipes.find(
+    (x) =>
+      x.product.name === productToProduce &&
+      selectedRecipes.includes(x.recipeName)
   );
   return (
     <div
@@ -74,13 +80,11 @@ export const App = () => {
                 setProductToProduce(product);
               }}
             />
-            <Form.Item label="Output rate (1/min)">
-              <InputNumber
-                value={wantedOutputRate}
-                onChange={(x) => setWantedOutputRate(x ?? 0)}
-                style={{ width: 250 }}
-              />
-            </Form.Item>
+            <OutputRate
+              rootRecipe={rootRecipe}
+              setWantedOutputRate={setWantedOutputRate}
+              wantedOutputRate={wantedOutputRate}
+            />
           </div>
           <Form.Item label="Selected recipes">
             <Select

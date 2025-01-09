@@ -1,14 +1,15 @@
-import { Button, Collapse, Form, Switch, Table } from "antd";
+import { Button, Form, Switch } from "antd";
 import { useLocalStorage } from "../reusableComp/useLocalStorage";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 import { calculateTreeResults } from "@/calculateTreeResults";
 import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
-import { DeleteOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import { CustomCard } from "@/reusableComp/CustomCard";
-import { ContainerOverlay } from "@/reusableComp/ContainerOverlay";
 import { useState } from "react";
+import { SavedFactories } from "./SavedFactories";
+import { ExpandedView } from "./ExpandedView";
+import { DetailedView } from "./DetailedView";
 
-interface SavedSetting {
+export interface SavedSetting {
   timestamp: number;
   productToProduce: string;
   wantedOutputRate: number;
@@ -30,9 +31,12 @@ export const SavedSettings = (props: {
     "saved-settings",
     []
   );
+  const [clickedFactory, setClickedFactory] = useState<number>();
+  const [hoveredFactory, setHoveredFactory] = useState<number>();
   const [expandedView, setExpandedView] = useState(false);
   const onChooseSavedSetting = (timestamp: number) => {
     const setting = savedSettings.find((x) => x.timestamp === timestamp)!;
+    setClickedFactory(timestamp);
     props.setProductToProduce(setting.productToProduce);
     props.setWantedOutputRate(setting.wantedOutputRate);
     props.setSelectedRecipes(setting.selectedRecipes);
@@ -74,9 +78,6 @@ export const SavedSettings = (props: {
   });
   return (
     <CustomCard title="Saved factories">
-      <Form.Item label="Expand view">
-        <Switch checked={expandedView} onChange={setExpandedView} />
-      </Form.Item>
       <Form.Item label="Save settings">
         <Button
           onClick={() => {
@@ -95,117 +96,47 @@ export const SavedSettings = (props: {
           Save
         </Button>
       </Form.Item>
+      <Form.Item label="Expand view">
+        <Switch checked={expandedView} onChange={setExpandedView} />
+      </Form.Item>
       {expandedView ? (
-        <Table
-          size="small"
-          pagination={false}
-          columns={[
-            {
-              title: "Load / Delete",
-              dataIndex: "action",
-              render: (_, record) => (
-                <div style={{ display: "flex" }}>
-                  <Button
-                    onClick={() => onChooseSavedSetting(record.timestamp)}
-                  >
-                    <PlayCircleOutlined />
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      setSavedSettings(
-                        savedSettings.filter(
-                          (x) => x.timestamp !== record.timestamp
-                        )
-                      )
-                    }
-                  >
-                    <DeleteOutlined />
-                  </Button>
-                </div>
-              ),
-            },
-            {
-              title: "Output",
-              dataIndex: "output",
-              render: (x: { product: string; rate: number }) => (
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  {Math.round(x.rate * 10000) / 10000}
-                  {"/min"}
-                  <IconWithTooltip item={x.product} />
-                </div>
-              ),
-            },
-            {
-              title: "Input",
-              dataIndex: "input",
-              render: (resources: { product: string; rate: number }[]) => (
-                <div style={{ display: "flex" }}>
-                  {resources.map((x) => (
-                    <div
-                      key={x.product}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        border: "solid grey",
-                        borderWidth: 0.5,
-                        borderRadius: 8,
-                        marginRight: 2,
-                        padding: 1,
-                      }}
-                    >
-                      {Math.round(x.rate * 100) / 100}
-                      {"/min"}
-                      <IconWithTooltip item={x.product} />
-                    </div>
-                  ))}
-                </div>
-              ),
-            },
-          ]}
-          dataSource={resourceRatesPerFactory.map((factory) => ({
-            key: factory.timestamp,
-            ...factory,
-          }))}
+        <ExpandedView
+          onChooseSavedSetting={onChooseSavedSetting}
+          resourceRatesPerFactory={resourceRatesPerFactory}
+          savedSettings={savedSettings}
+          setSavedSettings={setSavedSettings}
         />
       ) : (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            marginBottom: 10,
-          }}
-        >
-          {savedSettings.map((setting) => (
-            <SavedSettingsButton
-              key={setting.timestamp}
-              setting={setting}
-              onSelect={() => onChooseSavedSetting(setting.timestamp)}
-              onDelete={() => {
-                setSavedSettings(
-                  savedSettings.filter((x) => x.timestamp !== setting.timestamp)
-                );
-              }}
-            />
-          ))}
-        </div>
+        <SavedFactories
+          savedSettings={savedSettings}
+          accumulatedRates={accumulatedRates}
+          setSavedSettings={setSavedSettings}
+          onChooseSavedSetting={onChooseSavedSetting}
+          onMouseEnter={setHoveredFactory}
+          onMouseLeave={() => setHoveredFactory(undefined)}
+        />
       )}
-      <CustomCard title="Needed products">
+      <DetailedView
+        onDelete={() =>
+          setSavedSettings(
+            savedSettings.filter((x) => x.timestamp !== clickedFactory)
+          )
+        }
+        resourceRates={
+          resourceRatesPerFactory.find(
+            (x) => x.timestamp === (hoveredFactory ?? clickedFactory)
+          )!
+        }
+      />
+      <CustomCard title="Needed resources">
         <div style={{ display: "flex" }}>
           {[...accumulatedRates.entries()]
-            .filter((x) => x[1] < 0)
-            .map(([product, rate]) => (
-              <div key={product}>
-                {Math.round(rate * 100) / 100}
-                {"/min"}
-                <IconWithTooltip item={product} />
-              </div>
-            ))}
-        </div>
-      </CustomCard>
-      <CustomCard title="Produced products">
-        <div style={{ display: "flex" }}>
-          {[...accumulatedRates.entries()]
-            .filter((x) => x[1] > 0)
+            .filter(
+              (x) =>
+                !savedSettings.find(
+                  (setting) => setting.productToProduce === x[0]
+                )
+            )
             .map(([product, rate]) => (
               <div key={product}>
                 {Math.round(rate * 100) / 100}
@@ -216,23 +147,5 @@ export const SavedSettings = (props: {
         </div>
       </CustomCard>
     </CustomCard>
-  );
-};
-
-const SavedSettingsButton = (props: {
-  setting: SavedSetting;
-  onSelect: () => void;
-  onDelete: () => void;
-}) => {
-  return (
-    <ContainerOverlay icon="CLOSE" onClick={props.onDelete}>
-      <Button
-        onClick={props.onSelect}
-        style={{ display: "flex", alignItems: "center", margin: 1 }}
-      >
-        {props.setting.wantedOutputRate}x
-        <IconWithTooltip item={props.setting.productToProduce} />
-      </Button>
-    </ContainerOverlay>
   );
 };
