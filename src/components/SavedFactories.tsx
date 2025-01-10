@@ -1,4 +1,3 @@
-import { ContainerOverlay } from "@/reusableComp/ContainerOverlay";
 import { SavedSetting } from "./SavedSettings";
 import { Button, Tooltip } from "antd";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
@@ -6,6 +5,9 @@ import { useDraggable } from "@/reusableComp/useDraggable";
 
 export const SavedFactories = (props: {
   savedSettings: SavedSetting[];
+  selectedFactory?: number;
+  targetFactories: number[];
+  sourceFactories: number[];
   accumulatedRates: Map<string, number>;
   setSavedSettings: (value: SavedSetting[]) => void;
   onChooseSavedSetting: (timestamp: number) => void;
@@ -44,6 +46,9 @@ export const SavedFactories = (props: {
       {props.savedSettings.map((setting) => (
         <SavedSettingsButton
           key={setting.timestamp}
+          selected={props.selectedFactory === setting.timestamp}
+          isTargetFactory={props.targetFactories.includes(setting.timestamp)}
+          isSourceFactory={props.sourceFactories.includes(setting.timestamp)}
           setting={setting}
           accumulatedRates={props.accumulatedRates}
           onSelect={() => props.onChooseSavedSetting(setting.timestamp)}
@@ -66,6 +71,9 @@ export const SavedFactories = (props: {
 const SavedSettingsButton = (props: {
   setting: SavedSetting;
   accumulatedRates: Map<string, number>;
+  selected: boolean;
+  isTargetFactory: boolean;
+  isSourceFactory: boolean;
   onSelect: () => void;
   onDelete: () => void;
   onMouseEnter: () => void;
@@ -81,27 +89,36 @@ const SavedSettingsButton = (props: {
     props.setting.productToProduce
   )!;
   return (
-    <Button
-      onMouseEnter={() => props.onMouseEnter()}
-      onMouseLeave={() => props.onMouseLeave()}
+    <div
       ref={ref}
-      onClick={props.onSelect}
       style={{
-        display: "flex",
-        alignItems: "center",
-        margin: 1,
-        borderColor: accumulatedRate < 0 ? "red" : undefined,
+        borderStyle: props.isTargetFactory
+          ? "dashed"
+          : props.isSourceFactory
+          ? "dotted"
+          : "solid",
+        borderColor:
+          props.selected || props.isTargetFactory || props.isSourceFactory
+            ? undefined
+            : "white",
       }}
     >
-      <Tooltip title={`${Math.round(accumulatedRate * 100) / 100}/min`}>
-        {props.setting.wantedOutputRate}/min
-      </Tooltip>
-      <IconWithTooltip item={props.setting.productToProduce} />
-    </Button>
+      <Button
+        onMouseEnter={() => props.onMouseEnter()}
+        onMouseLeave={() => props.onMouseLeave()}
+        onClick={props.onSelect}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          borderColor:
+            accumulatedRate < 0 ? "red" : props.selected ? "blue" : undefined,
+        }}
+      >
+        <Tooltip title={`${Math.round(accumulatedRate * 100) / 100}/min`}>
+          {props.setting.wantedOutputRate}/min
+        </Tooltip>
+        <IconWithTooltip item={props.setting.productToProduce} />
+      </Button>
+    </div>
   );
 };
-
-{
-  /* <ContainerOverlay icon="CLOSE" onClick={props.onDelete}> */
-}
-/*  </ContainerOverlay> */

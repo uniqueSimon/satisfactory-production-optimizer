@@ -1,4 +1,4 @@
-import { Button, Form, Switch } from "antd";
+import { Button, Form } from "antd";
 import { useLocalStorage } from "../reusableComp/useLocalStorage";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 import { calculateTreeResults } from "@/calculateTreeResults";
@@ -6,7 +6,6 @@ import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
 import { CustomCard } from "@/reusableComp/CustomCard";
 import { useState } from "react";
 import { SavedFactories } from "./SavedFactories";
-import { ExpandedView } from "./ExpandedView";
 import { DetailedView } from "./DetailedView";
 
 export interface SavedSetting {
@@ -33,7 +32,6 @@ export const SavedSettings = (props: {
   );
   const [clickedFactory, setClickedFactory] = useState<number>();
   const [hoveredFactory, setHoveredFactory] = useState<number>();
-  const [expandedView, setExpandedView] = useState(false);
   const onChooseSavedSetting = (timestamp: number) => {
     const setting = savedSettings.find((x) => x.timestamp === timestamp)!;
     setClickedFactory(timestamp);
@@ -41,6 +39,31 @@ export const SavedSettings = (props: {
     props.setWantedOutputRate(setting.wantedOutputRate);
     props.setSelectedRecipes(setting.selectedRecipes);
     props.setDedicatedProducts(setting.dedicatedProducts ?? []);
+  };
+  const onSave = () => {
+    if (clickedFactory) {
+      const current = savedSettings.find(
+        (x) => x.timestamp === clickedFactory
+      )!;
+      current.productToProduce = props.productToProduce;
+      current.wantedOutputRate = props.wantedOutputRate;
+      current.selectedRecipes = props.selectedRecipes;
+      current.dedicatedProducts = props.dedicatedProducts;
+      setSavedSettings([...savedSettings]);
+    } else {
+      const now = Date.now();
+      setSavedSettings([
+        ...savedSettings,
+        {
+          timestamp: now,
+          productToProduce: props.productToProduce,
+          wantedOutputRate: props.wantedOutputRate,
+          selectedRecipes: props.selectedRecipes,
+          dedicatedProducts: props.dedicatedProducts,
+        },
+      ]);
+      setClickedFactory(now);
+    }
   };
   const resourceRatesPerFactory: {
     timestamp: number;
@@ -76,47 +99,79 @@ export const SavedSettings = (props: {
       input,
     });
   });
+  const targetFactoriesOfOutput: {
+    timestamp: number;
+    targetFactories: {
+      timestamp: number;
+      neededRate: number;
+      product: string;
+    }[];
+    sourceFactories: {
+      timestamp: number;
+      product: string;
+    }[];
+  }[] = [];
+  for (const currentFactory of resourceRatesPerFactory) {
+    const targetFactories: {
+      timestamp: number;
+      neededRate: number;
+      product: string;
+    }[] = [];
+    const sourceFactories: { timestamp: number; product: string }[] = [];
+    for (const targetFactory of resourceRatesPerFactory) {
+      const targetNeededRate = targetFactory.input.find(
+        (x) => x.product === currentFactory.output.product
+      );
+      if (targetNeededRate) {
+        targetFactories.push({
+          timestamp: targetFactory.timestamp,
+          neededRate: targetNeededRate.rate,
+          product: targetFactory.output.product,
+        });
+      }
+      const source = currentFactory.input.find(
+        (x) => x.product === targetFactory.output.product
+      );
+      if (source) {
+        sourceFactories.push({
+          timestamp: targetFactory.timestamp,
+          product: targetFactory.output.product,
+        });
+      }
+    }
+    targetFactoriesOfOutput.push({
+      timestamp: currentFactory.timestamp,
+      targetFactories,
+      sourceFactories,
+    });
+  }
   return (
     <CustomCard title="Saved factories">
       <Form.Item label="Save settings">
-        <Button
-          onClick={() => {
-            setSavedSettings([
-              ...savedSettings,
-              {
-                timestamp: Date.now(),
-                productToProduce: props.productToProduce,
-                wantedOutputRate: props.wantedOutputRate,
-                selectedRecipes: props.selectedRecipes,
-                dedicatedProducts: props.dedicatedProducts,
-              },
-            ]);
-          }}
-        >
-          Save
-        </Button>
+        <Button onClick={onSave}>Save</Button>
       </Form.Item>
-      <Form.Item label="Expand view">
-        <Switch checked={expandedView} onChange={setExpandedView} />
-      </Form.Item>
-      {expandedView ? (
-        <ExpandedView
-          onChooseSavedSetting={onChooseSavedSetting}
-          resourceRatesPerFactory={resourceRatesPerFactory}
-          savedSettings={savedSettings}
-          setSavedSettings={setSavedSettings}
-        />
-      ) : (
-        <SavedFactories
-          savedSettings={savedSettings}
-          accumulatedRates={accumulatedRates}
-          setSavedSettings={setSavedSettings}
-          onChooseSavedSetting={onChooseSavedSetting}
-          onMouseEnter={setHoveredFactory}
-          onMouseLeave={() => setHoveredFactory(undefined)}
-        />
-      )}
+      <Form.Item label="Expand view"></Form.Item>
+      <SavedFactories
+        selectedFactory={clickedFactory}
+        targetFactories={
+          targetFactoriesOfOutput
+            .find((x) => x.timestamp === clickedFactory)
+            ?.targetFactories.map((x) => x.timestamp) ?? []
+        }
+        sourceFactories={
+          targetFactoriesOfOutput
+            .find((x) => x.timestamp === clickedFactory)
+            ?.sourceFactories.map((x) => x.timestamp) ?? []
+        }
+        savedSettings={savedSettings}
+        accumulatedRates={accumulatedRates}
+        setSavedSettings={setSavedSettings}
+        onChooseSavedSetting={onChooseSavedSetting}
+        onMouseEnter={setHoveredFactory}
+        onMouseLeave={() => setHoveredFactory(undefined)}
+      />
       <DetailedView
+        onClose={() => setClickedFactory(undefined)}
         onDelete={() =>
           setSavedSettings(
             savedSettings.filter((x) => x.timestamp !== clickedFactory)
@@ -126,6 +181,11 @@ export const SavedSettings = (props: {
           resourceRatesPerFactory.find(
             (x) => x.timestamp === (hoveredFactory ?? clickedFactory)
           )!
+        }
+        targetFactories={
+          targetFactoriesOfOutput.find(
+            (x) => x.timestamp === (hoveredFactory ?? clickedFactory)
+          )?.targetFactories??[]
         }
       />
       <CustomCard title="Needed resources">

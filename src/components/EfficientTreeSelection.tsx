@@ -138,7 +138,7 @@ const RecipeSelection = (props: {
           <>
             {Math.round(numberOfMachines * 1000000) / 1000000}
             <span style={{ margin: "0 5px" }}>x</span>
-            <RecipeTooltip recipe={recipe} />
+            <RecipeTooltip recipe={recipe} rate={props.rate} />
             <IconWithTooltip item={recipe.producedIn} />
           </>
         ) : (
@@ -176,7 +176,7 @@ const RecipeSelection = (props: {
               >
                 {Math.round(numberOfMachines * 1000000) / 1000000}
                 <span style={{ margin: "0 5px" }}>x</span>
-                <RecipeTooltip recipe={x} />
+                <RecipeTooltip recipe={x} rate={props.rate} />
                 <IconWithTooltip item={x.producedIn} />
               </div>
             ),
