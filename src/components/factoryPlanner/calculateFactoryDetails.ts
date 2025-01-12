@@ -4,6 +4,14 @@ import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
 
 export interface FactoryDetails {
   timestamp: number;
+  productRates: Map<
+    string,
+    {
+      rate: number;
+      type?: "RESOURCE" | "MULTIPLE";
+    }
+  >;
+  machines: Map<string, number>;
   output: { product: string; rate: number };
   input: { product: string; rate: number }[];
   targetFactories: {
@@ -21,7 +29,7 @@ export interface FactoryDetails {
 export const calculateFactoryDetails = (savedSettings: SavedSetting[]) => {
   const factoryDetails: FactoryDetails[] = [];
   savedSettings.forEach((setting) => {
-    const { productRates } = calculateTreeResults(
+    const { productRates, machines } = calculateTreeResults(
       setting.productToProduce,
       setting.wantedOutputRate,
       setting.selectedRecipes,
@@ -35,6 +43,8 @@ export const calculateFactoryDetails = (savedSettings: SavedSetting[]) => {
     });
     factoryDetails.push({
       timestamp: setting.timestamp,
+      productRates,
+      machines,
       output: {
         product: setting.productToProduce,
         rate: setting.wantedOutputRate,
@@ -48,9 +58,7 @@ export const calculateFactoryDetails = (savedSettings: SavedSetting[]) => {
   return factoryDetails;
 };
 
-const calculateFactoryRelationships = (
-  factoryDetails: FactoryDetails[]
-) => {
+const calculateFactoryRelationships = (factoryDetails: FactoryDetails[]) => {
   for (const currentFactory of factoryDetails) {
     for (const otherFactory of factoryDetails) {
       const target = otherFactory.input.find(

@@ -1,16 +1,18 @@
-import { Button, Form } from "antd";
+import { Button, Form, Select } from "antd";
 import { useLocalStorage } from "../../reusableComp/useLocalStorage";
 import { CustomCard } from "@/reusableComp/CustomCard";
 import { useState } from "react";
 import { SavedFactories } from "./SavedFactories";
 import { DetailedView } from "./DetailedView";
-import {
-  calculateFactoryDetails,
-  FactoryDetails,
-} from "./calculateFactoryDetails";
+import { calculateFactoryDetails } from "./calculateFactoryDetails";
 import { CloseSquareOutlined, DeleteOutlined } from "@ant-design/icons";
-import { calculateTreeResults } from "@/calculateTreeResults";
+import { NeededResources } from "../NeededRessources";
+import { EfficientTreeSelection } from "../EfficientTreeSelection";
+import { Recipe } from "@/App";
+import { ProductToProduce } from "../ProductToProduce";
+import { OutputRate } from "../OutputRate";
 import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
+import { DedicatedProducts } from "../DedicatedProducts";
 
 export interface SavedSetting {
   timestamp: number;
@@ -20,112 +22,38 @@ export interface SavedSetting {
   dedicatedProducts: string[];
 }
 
-export const FactoryPlanner = (props: {
-  productToProduce: string;
-  wantedOutputRate: number;
-  selectedRecipes: string[];
-  dedicatedProducts: string[];
-  setProductToProduce: (productToProduce: string) => void;
-  setWantedOutputRate: (wantedOutputRate: number) => void;
-  setSelectedRecipes: (selectedRecipes: string[]) => void;
-  setDedicatedProducts: (products: string[]) => void;
-}) => {
+export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
   const [savedSettings, setSavedSettings] = useLocalStorage<SavedSetting[]>(
     "saved-settings",
     []
   );
   const [clickedFactoryId, setClickedFactory] = useState<number>();
   const [hoveredFactoryId, setHoveredFactory] = useState<number>();
-  const onChooseSavedSetting = (timestamp: number) => {
-    const setting = savedSettings.find((x) => x.timestamp === timestamp)!;
-    setClickedFactory(timestamp);
-    props.setProductToProduce(setting.productToProduce);
-    props.setWantedOutputRate(setting.wantedOutputRate);
-    props.setSelectedRecipes(setting.selectedRecipes);
-    props.setDedicatedProducts(setting.dedicatedProducts ?? []);
-  };
-  const onSave = () => {
-    if (clickedFactoryId) {
-      const current = savedSettings.find(
-        (x) => x.timestamp === clickedFactoryId
-      )!;
-      current.productToProduce = props.productToProduce;
-      current.wantedOutputRate = props.wantedOutputRate;
-      current.selectedRecipes = props.selectedRecipes;
-      current.dedicatedProducts = props.dedicatedProducts;
-      setSavedSettings([...savedSettings]);
-    } else {
-      const now = Date.now();
-      setSavedSettings([
-        ...savedSettings,
-        {
-          timestamp: now,
-          productToProduce: props.productToProduce,
-          wantedOutputRate: props.wantedOutputRate,
-          selectedRecipes: props.selectedRecipes,
-          dedicatedProducts: props.dedicatedProducts,
-        },
-      ]);
-      setClickedFactory(now);
-    }
-  };
   const factoryDetails = calculateFactoryDetails(savedSettings);
-  const { productRates } = calculateTreeResults(
-    props.productToProduce,
-    props.wantedOutputRate,
-    props.selectedRecipes,
-    allRecipes
+  const selectedFactory = factoryDetails.find(
+    (x) => x.timestamp === clickedFactoryId
   );
-  const newFactory: FactoryDetails = {
-    output: { product: props.productToProduce, rate: props.wantedOutputRate },
-    timestamp: Date.now(),
-    input: [],
-    sourceFactories: [],
-    targetFactories: [],
-  };
-  productRates.forEach((value, product) => {
-    if (value.type === "RESOURCE") {
-      newFactory.input.push({ product, rate: value.rate });
-    }
-  });
-  for (const otherFactory of factoryDetails) {
-    const target = otherFactory.input.find(
-      (x) => x.product === props.productToProduce
-    );
-    if (target) {
-      newFactory.targetFactories.push({
-        timestamp: otherFactory.timestamp,
-        rate: target.rate,
-        product: otherFactory.output.product,
-      });
-    }
-    const source = newFactory.input.find(
-      (x) => x.product === otherFactory.output.product
-    );
-    if (source) {
-      newFactory.sourceFactories.push({
-        timestamp: otherFactory.timestamp,
-        product: otherFactory.output.product,
-        rate: otherFactory.output.rate,
-      });
-    }
-  }
+  const selectedSavedSettings = savedSettings.find(
+    (x) => x.timestamp === clickedFactoryId
+  );
+  const rootRecipe = selectedSavedSettings
+    ? props.availableRecipes.find(
+        (x) =>
+          x.product.name === selectedSavedSettings.productToProduce &&
+          selectedSavedSettings.selectedRecipes.includes(x.recipeName)
+      )
+    : undefined;
   return (
     <CustomCard title="Factory planner">
-      <Form.Item label="Save settings">
-        <Button onClick={onSave}>Save</Button>
-      </Form.Item>
       <SavedFactories
         factoryDetails={factoryDetails}
         selectedFactoryId={clickedFactoryId}
         savedSettings={savedSettings}
         setSavedSettings={setSavedSettings}
-        onChooseSavedSetting={onChooseSavedSetting}
+        onChooseSavedSetting={setClickedFactory}
         onMouseEnter={setHoveredFactory}
         onMouseLeave={() => setHoveredFactory(undefined)}
-      />
-      <Button
-        onClick={() => {
+        onAddNew={() => {
           const timestamp = Date.now();
           setSavedSettings([
             ...savedSettings,
@@ -139,32 +67,35 @@ export const FactoryPlanner = (props: {
           ]);
           setClickedFactory(timestamp);
         }}
-      >
-        Create new factory
-      </Button>
+      />
       <div style={{ display: "flex" }}>
-        <CustomCard>
-          <Button
-            onClick={() => {
-              setClickedFactory(undefined);
-              setSavedSettings(
-                savedSettings.filter((x) => x.timestamp !== clickedFactoryId)
-              );
-            }}
-          >
-            <DeleteOutlined />
-          </Button>
-          <Button onClick={() => setClickedFactory(undefined)}>
-            <CloseSquareOutlined />
-          </Button>
-          <DetailedView
-            factoryDetails={
-              clickedFactoryId
-                ? factoryDetails.find((x) => x.timestamp === clickedFactoryId)!
-                : newFactory
-            }
-          />
-        </CustomCard>
+        {selectedFactory && (
+          <>
+            <CustomCard>
+              <Button
+                onClick={() => {
+                  setClickedFactory(undefined);
+                  setSavedSettings(
+                    savedSettings.filter(
+                      (x) => x.timestamp !== clickedFactoryId
+                    )
+                  );
+                }}
+              >
+                <DeleteOutlined />
+              </Button>
+              <Button onClick={() => setClickedFactory(undefined)}>
+                <CloseSquareOutlined />
+              </Button>
+              <DetailedView
+                factoryDetails={
+                  factoryDetails.find((x) => x.timestamp === clickedFactoryId)!
+                }
+              />
+            </CustomCard>
+            <NeededResources machines={selectedFactory.machines} />
+          </>
+        )}
         {hoveredFactoryId && hoveredFactoryId !== clickedFactoryId && (
           <CustomCard>
             <DetailedView
@@ -175,6 +106,86 @@ export const FactoryPlanner = (props: {
           </CustomCard>
         )}
       </div>
+      {selectedFactory && selectedSavedSettings && (
+        <>
+          <CustomCard>
+            <div style={{ display: "flex" }}>
+              <ProductToProduce
+                productToProduce={selectedSavedSettings.productToProduce}
+                setProductToProduce={(product) => {
+                  selectedSavedSettings.selectedRecipes = [];
+                  selectedSavedSettings.dedicatedProducts = [];
+                  selectedSavedSettings.productToProduce = product;
+                  setSavedSettings([...savedSettings]);
+                }}
+              />
+              <OutputRate
+                rootRecipe={rootRecipe}
+                setWantedOutputRate={(wantedOutputRate) => {
+                  selectedSavedSettings.wantedOutputRate = wantedOutputRate;
+                  setSavedSettings([...savedSettings]);
+                }}
+                wantedOutputRate={selectedSavedSettings.wantedOutputRate}
+              />
+            </div>
+            <Form.Item label="Selected recipes">
+              <Select
+                mode="multiple"
+                allowClear={true}
+                options={allRecipes.map((x) => ({
+                  key: x.recipeName,
+                  value: x.recipeName,
+                  label: x.displayName,
+                }))}
+                value={selectedSavedSettings.selectedRecipes}
+                onChange={(selectedRecipes) => {
+                  selectedSavedSettings.selectedRecipes = selectedRecipes;
+                  setSavedSettings([...savedSettings]);
+                }}
+              />
+            </Form.Item>
+            {selectedSavedSettings.productToProduce && (
+              <DedicatedProducts
+                currentProducts={[...selectedFactory.productRates.entries()]
+                  .filter((x) => x[1].type === "MULTIPLE")
+                  .map((x) => x[0])}
+                dedicatedProducts={selectedSavedSettings.dedicatedProducts}
+                setDedicatedProducts={(dedicatedProducts) => {
+                  selectedSavedSettings.dedicatedProducts = dedicatedProducts;
+                  setSavedSettings([...savedSettings]);
+                }}
+              />
+            )}
+          </CustomCard>
+          <EfficientTreeSelection
+            dedicatedProducts={selectedSavedSettings.dedicatedProducts ?? []}
+            productToProduce={selectedSavedSettings.productToProduce}
+            selectedRecipes={selectedSavedSettings.selectedRecipes}
+            availableRecipes={props.availableRecipes}
+            wantedOutputRate={selectedSavedSettings.wantedOutputRate}
+            setSelectedRecipes={(selectedRecipes) => {
+              selectedSavedSettings.selectedRecipes = selectedRecipes;
+              setSavedSettings([...savedSettings]);
+            }}
+          />
+          <div style={{ display: "flex" }}>
+            {(selectedSavedSettings.dedicatedProducts ?? []).map((product) => (
+              <EfficientTreeSelection
+                key={product}
+                dedicatedProducts={selectedSavedSettings.dedicatedProducts}
+                productToProduce={product}
+                selectedRecipes={selectedSavedSettings.selectedRecipes}
+                availableRecipes={props.availableRecipes}
+                wantedOutputRate={selectedSavedSettings.wantedOutputRate}
+                setSelectedRecipes={(selectedRecipes) => {
+                  selectedSavedSettings.selectedRecipes = selectedRecipes;
+                  setSavedSettings([...savedSettings]);
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </CustomCard>
   );
 };

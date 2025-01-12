@@ -14,6 +14,7 @@ export const SavedFactories = (props: {
   onChooseSavedSetting: (timestamp: number) => void;
   onMouseEnter: (timestamp: number) => void;
   onMouseLeave: () => void;
+  onAddNew: () => void;
 }) => {
   const insertCard = (
     sourceId: number,
@@ -70,6 +71,9 @@ export const SavedFactories = (props: {
             />
           );
         })}
+        <div style={{ border: "solid", borderColor: "white" }}>
+          <Button onClick={props.onAddNew}>+ new</Button>
+        </div>
       </div>
     </CustomCard>
   );
