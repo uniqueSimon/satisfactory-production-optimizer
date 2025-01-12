@@ -1,14 +1,29 @@
 import { Recipe } from "../App";
 import gameData from "./gameData.json";
+import { recipeSchematicMapping } from "./recipeSchematicMapping";
 
-interface ItemClass {
-  ClassName: string;
-  FullName: string;
-  mProduct: string;
-  mIngredients: string;
-  mManufactoringDuration: string;
-  mDisplayName: string;
-  mProducedIn: string;
+export interface FGRecipe {
+  NativeClass: "/Script/CoreUObject.Class'/Script/FactoryGame.FGRecipe'";
+  Classes: {
+    ClassName: string;
+    FullName: string;
+    mProduct: string;
+    mIngredients: string;
+    mManufactoringDuration: string;
+    mDisplayName: string;
+    mProducedIn: string;
+  }[];
+}
+export interface Schematic {
+  NativeClass: "/Script/CoreUObject.Class'/Script/FactoryGame.FGSchematic'";
+  Classes: {
+    ClassName: string;
+    mDisplayName: string;
+    FullName: string;
+    mType: "EST_Custom" | "EST_Alternate";
+    mTechTier: string;
+    mUnlocks: { Class: "BP_UnlockRecipe_C"; mRecipes: string }[];
+  }[];
 }
 
 const getProductAndAmount = (rawString: string) => {
@@ -25,9 +40,11 @@ const getIngredients = (rawString: string) => {
   const ingredients: { name: string; amount: number }[] = [];
   for (const rawIngredients of splittedIngredients) {
     const ingredientsMatching =
-      /\.(?:Desc|BP)_([A-Za-z_0-9]*)_C'",Amount=(\d+)/.exec(rawIngredients)!;
-    const [_, name, rate] = ingredientsMatching;
-    ingredients.push({ name, amount: convertRateUnits(name, +rate) });
+      /\.(?:Desc|BP)_([A-Za-z_0-9]*)_C'",Amount=(\d+)/.exec(rawIngredients);
+    if (ingredientsMatching) {
+      const [_, name, rate] = ingredientsMatching;
+      ingredients.push({ name, amount: convertRateUnits(name, +rate) });
+    }
   }
   return ingredients;
 };
@@ -52,33 +69,32 @@ const convertRateUnits = (productName: string, rate: number) => {
   return rate;
 };
 const allRecipes: Recipe[] = [];
-const recipeNativeClass = (gameData as any[]).find(
+const recipeNativeClass = (gameData as [Schematic, FGRecipe]).find(
   (x) =>
     x.NativeClass === "/Script/CoreUObject.Class'/Script/FactoryGame.FGRecipe'"
-);
+)!;
 for (const item of recipeNativeClass!.Classes) {
-  const itemClass = item as ItemClass;
-  const recipeName = itemClass.ClassName.split("_").slice(1, -1).join("_");
-  const displayName = itemClass.mDisplayName;
-  const fullName = itemClass.FullName;
+  const recipeName = item.ClassName.split("_").slice(1, -1).join("_");
+  const displayName = item.mDisplayName;
+  const fullName = item.FullName;
   const categoryMatching =
     /BlueprintGeneratedClass \/Game\/FactoryGame\/Recipes\/(.*)/.exec(fullName);
   if (
     categoryMatching &&
     !categoryMatching[1].includes("Buildings") &&
     !categoryMatching[1].includes("Equipment") &&
-    !categoryMatching[1].includes("Converter") &&
     !categoryMatching[1].includes("Vehicle")
   ) {
-    const ingredients = getIngredients(itemClass.mIngredients);
-    const time = +itemClass.mManufactoringDuration;
-    const producedInString = itemClass.mProducedIn.split("/")[5];
+    const ingredients = getIngredients(item.mIngredients);
+    const time = +item.mManufactoringDuration;
+    const producedInString = item.mProducedIn.split("/")[5];
     const producedIn = producedInString;
-    const splittedProducts = itemClass.mProduct.split("),(");
+    const splittedProducts = item.mProduct.split("),(");
 
     const products = splittedProducts.map((product) =>
       getProductAndAmount(product)
     );
+    const schematic = recipeSchematicMapping.get(recipeName)!;
     if (products.length === 2) {
       allRecipes.push({
         recipeName,
@@ -89,9 +105,9 @@ for (const item of recipeNativeClass!.Classes) {
           { name: products[1].name, amount: -products[1].amount },
         ],
         time,
-        isAlternate:
-          recipeName.includes("Alternate_") || recipeName.includes("Residual"),
         producedIn,
+        tier: schematic.tier,
+        isAlternate: schematic.isAlternate,
       });
       allRecipes.push({
         recipeName: `${recipeName}2`,
@@ -102,9 +118,9 @@ for (const item of recipeNativeClass!.Classes) {
           { name: products[0].name, amount: -products[0].amount },
         ],
         time,
-        isAlternate:
-          recipeName.includes("Alternate_") || recipeName.includes("Residual"),
         producedIn,
+        tier: schematic.tier,
+        isAlternate: schematic.isAlternate,
       });
     } else if (products.length === 1) {
       allRecipes.push({
@@ -113,9 +129,9 @@ for (const item of recipeNativeClass!.Classes) {
         product: products[0],
         ingredients,
         time,
-        isAlternate:
-          recipeName.includes("Alternate_") || recipeName.includes("Residual"),
         producedIn,
+        tier: schematic.tier,
+        isAlternate: schematic.isAlternate,
       });
     } else {
       console.warn("Error: Unknown product count", products);

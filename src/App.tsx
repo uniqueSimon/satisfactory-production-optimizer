@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Form, Select, Typography } from "antd";
 import { allRecipes } from "./parseGameData/allRecipesFromConfig";
 import { useLocalStorage } from "./reusableComp/useLocalStorage";
-import { SavedSettings } from "./components/SavedSettings";
+import { FactoryPlanner } from "./components/factoryPlanner/FactoryPlanner";
 import { ProductToProduce } from "./components/ProductToProduce";
 import { EfficientTreeSelection } from "./components/EfficientTreeSelection";
 import { NeededResources } from "./components/NeededRessources";
@@ -20,6 +20,7 @@ export interface Recipe {
   time: number;
   isAlternate: boolean;
   producedIn: string;
+  tier: number;
 }
 
 export const App = () => {
@@ -56,7 +57,7 @@ export const App = () => {
     >
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
-        <SavedSettings
+        <FactoryPlanner
           dedicatedProducts={dedicatedProducts}
           productToProduce={productToProduce}
           selectedRecipes={selectedRecipes}

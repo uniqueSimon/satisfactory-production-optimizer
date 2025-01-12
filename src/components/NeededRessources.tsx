@@ -12,6 +12,7 @@ enum MachineSpace {
   Packager = 64,
   SmelterMk1 = 54,
   HadronCollider = 912,
+  Converter = 256,
 }
 
 export const NeededResources = (props: {
