@@ -5,8 +5,10 @@ import { useDraggable } from "@/reusableComp/useDraggable";
 import { FactoryDetails } from "./calculateFactoryDetails";
 import { CaretUpOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { CustomCard } from "@/reusableComp/CustomCard";
+import { AccumulatedRates } from "./AccumulatedRates";
 
 export const SavedFactories = (props: {
+  dropableRef: React.RefObject<HTMLDivElement>;
   factoryDetails: FactoryDetails[];
   savedSettings: SavedSetting[];
   selectedFactoryId?: number;
@@ -15,31 +17,18 @@ export const SavedFactories = (props: {
   onMouseEnter: (timestamp: number) => void;
   onMouseLeave: () => void;
   onAddNew: () => void;
-}) => {
-  const insertCard = (
+  onInsertCard: (
     sourceId: number,
     targetId: number,
     closestEdge: "left" | "right"
-  ) => {
-    const sourceItem = props.savedSettings.find(
-      (x) => x.timestamp === sourceId
-    )!;
-    const targetIndex = props.savedSettings.findIndex(
-      (x) => x.timestamp === targetId
-    );
-    const insertionIndex =
-      closestEdge === "left" ? targetIndex : targetIndex + 1;
-    const firstPart = props.savedSettings
-      .slice(0, insertionIndex)
-      .filter((x) => x.timestamp !== sourceId);
-    const lastPart = props.savedSettings
-      .slice(insertionIndex)
-      .filter((x) => x.timestamp !== sourceId);
-    props.setSavedSettings([...firstPart, sourceItem, ...lastPart]);
-  };
+  ) => void;
+}) => {
   return (
     <CustomCard>
-      <div style={{ display: "flex", flexWrap: "wrap" }}>
+      <div
+        ref={props.dropableRef}
+        style={{ display: "flex", flexWrap: "wrap", marginBottom: 10 }}
+      >
         {props.factoryDetails.map((details) => {
           const neededOutputRate = details.targetFactories.reduce(
             (sum, current) => sum + current.rate,
@@ -67,7 +56,7 @@ export const SavedFactories = (props: {
               onSelect={() => props.onChooseSavedSetting(details.timestamp)}
               onMouseEnter={() => props.onMouseEnter(details.timestamp)}
               onMouseLeave={() => props.onMouseLeave()}
-              onDrop={insertCard}
+              onDrop={props.onInsertCard}
             />
           );
         })}
@@ -75,6 +64,7 @@ export const SavedFactories = (props: {
           <Button onClick={props.onAddNew}>+ new</Button>
         </div>
       </div>
+      <AccumulatedRates factoryDetails={props.factoryDetails} />
     </CustomCard>
   );
 };

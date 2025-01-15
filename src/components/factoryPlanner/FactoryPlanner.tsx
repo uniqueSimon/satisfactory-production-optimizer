@@ -1,11 +1,15 @@
 import { Button, Form, Select } from "antd";
 import { useLocalStorage } from "../../reusableComp/useLocalStorage";
 import { CustomCard } from "@/reusableComp/CustomCard";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SavedFactories } from "./SavedFactories";
 import { DetailedView } from "./DetailedView";
 import { calculateFactoryDetails } from "./calculateFactoryDetails";
-import { CloseSquareOutlined, DeleteOutlined } from "@ant-design/icons";
+import {
+  CloseSquareOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import { NeededResources } from "../NeededRessources";
 import { EfficientTreeSelection } from "../EfficientTreeSelection";
 import { Recipe } from "@/App";
@@ -13,6 +17,7 @@ import { ProductToProduce } from "../ProductToProduce";
 import { OutputRate } from "../OutputRate";
 import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
 import { DedicatedProducts } from "../DedicatedProducts";
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
 export interface SavedSetting {
   timestamp: number;
@@ -27,13 +32,21 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
     "saved-settings",
     []
   );
-  const [clickedFactoryId, setClickedFactory] = useState<number>();
-  const [hoveredFactoryId, setHoveredFactory] = useState<number>();
-  const factoryDetails = calculateFactoryDetails(savedSettings);
-  const selectedFactory = factoryDetails.find(
+  const [savedSettingsSeparate, setSavedSettingsSeparate] = useLocalStorage<
+    SavedSetting[]
+  >("saved-settings-separate", []);
+  const [clickedFactoryId, setClickedFactoryId] = useState<number>();
+  const [hoveredFactoryId, setHoveredFactoryId] = useState<number>();
+  const combinedSavedSettings = [...savedSettings, ...savedSettingsSeparate];
+  const combinedFactoryDetails = calculateFactoryDetails(combinedSavedSettings);
+  const factoryDetails = combinedFactoryDetails.slice(0, savedSettings.length);
+  const factoryDetailsSeparate = combinedFactoryDetails.slice(
+    savedSettings.length
+  );
+  const selectedFactory = combinedFactoryDetails.find(
     (x) => x.timestamp === clickedFactoryId
   );
-  const selectedSavedSettings = savedSettings.find(
+  const selectedSavedSettings = combinedSavedSettings.find(
     (x) => x.timestamp === clickedFactoryId
   );
   const rootRecipe = selectedSavedSettings
@@ -43,16 +56,107 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
           selectedSavedSettings.selectedRecipes.includes(x.recipeName)
       )
     : undefined;
+  const insertCard1 = (
+    sourceId: number,
+    targetId: number,
+    closestEdge: "left" | "right"
+  ) => {
+    const sourceItem = savedSettings.find((x) => x.timestamp === sourceId);
+    if (!sourceItem) {
+      return;
+    }
+    const targetIndex = savedSettings.findIndex(
+      (x) => x.timestamp === targetId
+    );
+    const insertionIndex =
+      closestEdge === "left" ? targetIndex : targetIndex + 1;
+    const firstPart = savedSettings
+      .slice(0, insertionIndex)
+      .filter((x) => x.timestamp !== sourceId);
+    const lastPart = savedSettings
+      .slice(insertionIndex)
+      .filter((x) => x.timestamp !== sourceId);
+    setSavedSettings([...firstPart, sourceItem, ...lastPart]);
+  };
+  const insertCard2 = (
+    sourceId: number,
+    targetId: number,
+    closestEdge: "left" | "right"
+  ) => {
+    const sourceItem = savedSettingsSeparate.find(
+      (x) => x.timestamp === sourceId
+    )!;
+    if (!sourceItem) {
+      return;
+    }
+    const targetIndex = savedSettingsSeparate.findIndex(
+      (x) => x.timestamp === targetId
+    );
+    const insertionIndex =
+      closestEdge === "left" ? targetIndex : targetIndex + 1;
+    const firstPart = savedSettingsSeparate
+      .slice(0, insertionIndex)
+      .filter((x) => x.timestamp !== sourceId);
+    const lastPart = savedSettingsSeparate
+      .slice(insertionIndex)
+      .filter((x) => x.timestamp !== sourceId);
+    setSavedSettingsSeparate([...firstPart, sourceItem, ...lastPart]);
+  };
+  const refDropable1 = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = refDropable1.current!;
+    const cleanupDropTarget = dropTargetForElements({
+      element,
+      canDrop: ({ source }) =>
+        savedSettingsSeparate.some((x) => x.timestamp === source.data.id),
+      onDrop: ({ source }) => {
+        setSavedSettings([
+          ...savedSettings,
+          savedSettingsSeparate.find((x) => x.timestamp === source.data.id)!,
+        ]);
+        setSavedSettingsSeparate(
+          savedSettingsSeparate.filter((x) => x.timestamp !== source.data.id)
+        );
+      },
+    });
+    return () => {
+      cleanupDropTarget();
+    };
+  }, [savedSettings, savedSettingsSeparate]);
+  const refDropable2 = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = refDropable2.current!;
+    const cleanupDropTarget = dropTargetForElements({
+      element,
+      canDrop: ({ source }) =>
+        savedSettings.some((x) => x.timestamp === source.data.id),
+
+      onDrop: ({ source }) => {
+        setSavedSettingsSeparate([
+          ...savedSettingsSeparate,
+          savedSettings.find((x) => x.timestamp === source.data.id)!,
+        ]);
+        setSavedSettings(
+          savedSettings.filter((x) => x.timestamp !== source.data.id)
+        );
+      },
+    });
+    return () => {
+      cleanupDropTarget();
+    };
+  }, [savedSettings, savedSettingsSeparate]);
   return (
     <CustomCard title="Factory planner">
       <SavedFactories
+        dropableRef={refDropable1}
+        onInsertCard={insertCard1}
         factoryDetails={factoryDetails}
         selectedFactoryId={clickedFactoryId}
         savedSettings={savedSettings}
         setSavedSettings={setSavedSettings}
-        onChooseSavedSetting={setClickedFactory}
-        onMouseEnter={setHoveredFactory}
-        onMouseLeave={() => setHoveredFactory(undefined)}
+        onChooseSavedSetting={setClickedFactoryId}
+        onMouseEnter={setHoveredFactoryId}
+        onMouseLeave={() => setHoveredFactoryId(undefined)}
         onAddNew={() => {
           const timestamp = Date.now();
           setSavedSettings([
@@ -65,7 +169,32 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
               dedicatedProducts: [],
             },
           ]);
-          setClickedFactory(timestamp);
+          setClickedFactoryId(timestamp);
+        }}
+      />
+      <SavedFactories
+        dropableRef={refDropable2}
+        onInsertCard={insertCard2}
+        factoryDetails={factoryDetailsSeparate}
+        selectedFactoryId={clickedFactoryId}
+        savedSettings={savedSettingsSeparate}
+        setSavedSettings={setSavedSettingsSeparate}
+        onChooseSavedSetting={setClickedFactoryId}
+        onMouseEnter={setHoveredFactoryId}
+        onMouseLeave={() => setHoveredFactoryId(undefined)}
+        onAddNew={() => {
+          const timestamp = Date.now();
+          setSavedSettingsSeparate([
+            ...savedSettingsSeparate,
+            {
+              timestamp,
+              productToProduce: "",
+              wantedOutputRate: 0,
+              selectedRecipes: [],
+              dedicatedProducts: [],
+            },
+          ]);
+          setClickedFactoryId(timestamp);
         }}
       />
       <div style={{ display: "flex" }}>
@@ -74,9 +203,14 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
             <CustomCard>
               <Button
                 onClick={() => {
-                  setClickedFactory(undefined);
+                  setClickedFactoryId(undefined);
                   setSavedSettings(
                     savedSettings.filter(
+                      (x) => x.timestamp !== clickedFactoryId
+                    )
+                  );
+                  setSavedSettingsSeparate(
+                    savedSettingsSeparate.filter(
                       (x) => x.timestamp !== clickedFactoryId
                     )
                   );
@@ -84,12 +218,24 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
               >
                 <DeleteOutlined />
               </Button>
-              <Button onClick={() => setClickedFactory(undefined)}>
+              <Button onClick={() => setClickedFactoryId(undefined)}>
                 <CloseSquareOutlined />
+              </Button>
+              <Button
+                onClick={() =>
+                  setSavedSettings([
+                    ...savedSettings,
+                    { ...selectedSavedSettings!, timestamp: Date.now() },
+                  ])
+                }
+              >
+                <CopyOutlined />
               </Button>
               <DetailedView
                 factoryDetails={
-                  factoryDetails.find((x) => x.timestamp === clickedFactoryId)!
+                  combinedFactoryDetails.find(
+                    (x) => x.timestamp === clickedFactoryId
+                  )!
                 }
               />
             </CustomCard>
@@ -100,7 +246,9 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
           <CustomCard>
             <DetailedView
               factoryDetails={
-                factoryDetails.find((x) => x.timestamp === hoveredFactoryId)!
+                combinedFactoryDetails.find(
+                  (x) => x.timestamp === hoveredFactoryId
+                )!
               }
             />
           </CustomCard>
@@ -176,7 +324,9 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
                 productToProduce={product}
                 selectedRecipes={selectedSavedSettings.selectedRecipes}
                 availableRecipes={props.availableRecipes}
-                wantedOutputRate={selectedSavedSettings.wantedOutputRate}
+                wantedOutputRate={
+                  selectedFactory.productRates.get(product)!.rate
+                }
                 setSelectedRecipes={(selectedRecipes) => {
                   selectedSavedSettings.selectedRecipes = selectedRecipes;
                   setSavedSettings([...savedSettings]);
