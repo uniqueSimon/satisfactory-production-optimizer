@@ -1,4 +1,4 @@
-import { Collapse, Form, Select, Switch, Table, Tooltip } from "antd";
+import { Collapse, Form, Select, Switch } from "antd";
 import { allRecipes } from "../parseGameData/allRecipesFromConfig";
 import { Recipe } from "@/App";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";

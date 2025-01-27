@@ -11,6 +11,13 @@ export const EfficientTreeSelection = (props: {
   selectedRecipes: string[];
   availableRecipes: Recipe[];
   setSelectedRecipes: (selectedRecipes: string[]) => void;
+  weights: Map<
+    string,
+    {
+      recipeName: string;
+      weight: number;
+    }[]
+  >;
 }) => {
   const Recursion = (propsRec: { product: string; rate: number }) => {
     const recipes = props.availableRecipes.filter(
@@ -18,6 +25,10 @@ export const EfficientTreeSelection = (props: {
     );
     const index = props.dedicatedProducts.indexOf(propsRec.product);
     const isRoot = propsRec.product === props.productToProduce;
+    const productWeights = props.weights.get(propsRec.product);
+    const minWeight = productWeights
+      ? Math.min(...props.weights.get(propsRec.product)!.map((x) => x.weight))
+      : Infinity;
     if ((!isRoot && index > -1) || recipes.length === 0 || propsRec.rate < 0) {
       return (
         <div style={{ width: "100%" }}>
@@ -30,6 +41,7 @@ export const EfficientTreeSelection = (props: {
                 ? `hsl(${(index * 200) % 360},20%,60%)`
                 : "hsl(0,0%,60%)"
             }
+            weight={minWeight}
           />
         </div>
       );
@@ -46,6 +58,7 @@ export const EfficientTreeSelection = (props: {
           color={
             index > -1 ? `hsl(${(index * 200) % 360},20%,60%)` : "lightgray"
           }
+          weight={minWeight}
         />
         <RecipeSelection
           currentRecipe={currentRecipe}
@@ -53,6 +66,7 @@ export const EfficientTreeSelection = (props: {
           recipes={recipes}
           selectedRecipes={props.selectedRecipes}
           setSelectedRecipes={props.setSelectedRecipes}
+          weights={props.weights.get(propsRec.product)!}
         />
         {currentRecipe && (
           <div style={{ display: "flex" }}>
@@ -88,6 +102,7 @@ const ProductBox = (props: {
   rate: number;
   color: string;
   isRoot: boolean;
+  weight: number;
 }) => (
   <div
     style={{
@@ -106,6 +121,7 @@ const ProductBox = (props: {
     {Math.round(props.rate * 10000) / 10000}
     {"/min"}
     <IconWithTooltip item={props.product} />
+    {`(${Math.round(props.weight * props.rate * 100) / 100} WP)`}
   </div>
 );
 
@@ -115,6 +131,7 @@ const RecipeSelection = (props: {
   currentRecipe?: Recipe;
   selectedRecipes: string[];
   setSelectedRecipes: (recipes: string[]) => void;
+  weights: { recipeName: string; weight: number }[];
 }) => {
   if (props.recipes.length === 1) {
     const recipe = props.recipes[0];
@@ -178,6 +195,15 @@ const RecipeSelection = (props: {
                 <span style={{ margin: "0 5px" }}>x</span>
                 <RecipeTooltip recipe={x} rate={props.rate} />
                 <IconWithTooltip item={x.producedIn} />
+                {`(${
+                  Math.round(
+                    props.weights.find(
+                      (recipe) => recipe.recipeName === x.recipeName
+                    )!.weight *
+                      props.rate *
+                      100
+                  ) / 100
+                } WP)`}
               </div>
             ),
           };

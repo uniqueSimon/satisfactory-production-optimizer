@@ -109,7 +109,7 @@ for (const item of recipeNativeClass!.Classes) {
         tier: schematic.tier,
         isAlternate: schematic.isAlternate,
       });
-      allRecipes.push({
+      /* allRecipes.push({
         recipeName: `${recipeName}2`,
         displayName: `${displayName} 2`,
         product: products[1],
@@ -121,7 +121,7 @@ for (const item of recipeNativeClass!.Classes) {
         producedIn,
         tier: schematic.tier,
         isAlternate: schematic.isAlternate,
-      });
+      }); */
     } else if (products.length === 1) {
       allRecipes.push({
         recipeName,

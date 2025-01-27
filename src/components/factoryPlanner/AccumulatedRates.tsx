@@ -13,15 +13,15 @@ export const AccumulatedRates = (props: {
   for (const factory of props.factoryDetails) {
     accumulate(factory.output.product, factory.output.rate);
     for (const input of factory.input) {
-      accumulate(input.product, -input.rate);
+      accumulate(input.product, input.rate);
     }
   }
   const neededResources = [...accumulatedRates.entries()]
     .filter(
       (x) =>
-        x[1] < 0 && !props.factoryDetails.some((y) => y.output.product === x[0])
+        !props.factoryDetails.some((y) => y.output.product === x[0])
     )
-    .sort((a, b) => a[1] - b[1]);
+    .sort((a, b) => b[1] - a[1]);
   return (
     <Collapse size='small'
       items={[

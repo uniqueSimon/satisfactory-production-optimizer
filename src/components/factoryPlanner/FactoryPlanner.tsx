@@ -18,6 +18,7 @@ import { OutputRate } from "../OutputRate";
 import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
 import { DedicatedProducts } from "../DedicatedProducts";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { calculateProductWeights, maxRates } from "@/calculateProductWeights";
 
 export interface SavedSetting {
   timestamp: number;
@@ -145,8 +146,25 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
       cleanupDropTarget();
     };
   }, [savedSettings, savedSettingsSeparate]);
+  const [excludedResources, setExcludedResources] = useState([]);
+  const weights = calculateProductWeights(excludedResources);
+  const allResources = [...maxRates.keys()];
   return (
     <CustomCard title="Factory planner">
+      <Form.Item label="Resources to exclude from weighting points">
+        <Select
+          style={{ display: "block" }}
+          mode="multiple"
+          allowClear={true}
+          options={allResources.map((x) => ({
+            key: x,
+            value: x,
+            label: x,
+          }))}
+          value={excludedResources}
+          onChange={setExcludedResources}
+        />
+      </Form.Item>
       <SavedFactories
         dropableRef={refDropable1}
         onInsertCard={insertCard1}
@@ -222,12 +240,14 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
                 <CloseSquareOutlined />
               </Button>
               <Button
-                onClick={() =>
+                onClick={() => {
+                  const timestamp = Date.now();
                   setSavedSettings([
                     ...savedSettings,
-                    { ...selectedSavedSettings!, timestamp: Date.now() },
-                  ])
-                }
+                    { ...selectedSavedSettings!, timestamp },
+                  ]);
+                  setClickedFactoryId(timestamp);
+                }}
               >
                 <CopyOutlined />
               </Button>
@@ -315,6 +335,7 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
               selectedSavedSettings.selectedRecipes = selectedRecipes;
               setSavedSettings([...savedSettings]);
             }}
+            weights={weights}
           />
           <div style={{ display: "flex" }}>
             {(selectedSavedSettings.dedicatedProducts ?? []).map((product) => (
@@ -331,6 +352,7 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
                   selectedSavedSettings.selectedRecipes = selectedRecipes;
                   setSavedSettings([...savedSettings]);
                 }}
+                weights={weights}
               />
             ))}
           </div>
