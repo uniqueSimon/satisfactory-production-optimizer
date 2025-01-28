@@ -1,11 +1,11 @@
 import { FGRecipe, Schematic } from "./allRecipesFromConfig";
 import gameData from "./gameData.json";
 
-const schematics = (gameData as [Schematic, FGRecipe]).find(
+const schematics = (gameData as unknown as [Schematic, FGRecipe]).find(
   (x) =>
     x.NativeClass ===
     "/Script/CoreUObject.Class'/Script/FactoryGame.FGSchematic'"
-)!;
+) as Schematic;
 export const recipeSchematicMapping = new Map<
   string,
   { tier: number; isAlternate: boolean }

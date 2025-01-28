@@ -20,9 +20,9 @@ export const App = () => {
     "found-alt-recipes",
     []
   );
-  const availableRecipes = allRecipes.filter(
+  /* const availableRecipes = allRecipes.filter(
     (x) => !x.isAlternate || foundAltRecipes.includes(x.recipeName)
-  );
+  ); */
   return (
     <div
       style={{

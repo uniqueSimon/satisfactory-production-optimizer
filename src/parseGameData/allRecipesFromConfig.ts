@@ -69,10 +69,10 @@ const convertRateUnits = (productName: string, rate: number) => {
   return rate;
 };
 const allRecipes: Recipe[] = [];
-const recipeNativeClass = (gameData as [Schematic, FGRecipe]).find(
+const recipeNativeClass = (gameData as unknown as [Schematic, FGRecipe]).find(
   (x) =>
     x.NativeClass === "/Script/CoreUObject.Class'/Script/FactoryGame.FGRecipe'"
-)!;
+) as FGRecipe;
 for (const item of recipeNativeClass!.Classes) {
   const recipeName = item.ClassName.split("_").slice(1, -1).join("_");
   const displayName = item.mDisplayName;
