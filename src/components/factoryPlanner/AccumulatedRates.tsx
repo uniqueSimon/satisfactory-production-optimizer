@@ -13,29 +13,27 @@ export const AccumulatedRates = (props: {
   for (const factory of props.factoryDetails) {
     accumulate(factory.output.product, factory.output.rate);
     for (const input of factory.input) {
-      accumulate(input.product, input.rate);
+      accumulate(input.product, -input.rate);
     }
   }
-  const neededResources = [...accumulatedRates.entries()]
-    .filter(
-      (x) =>
-        !props.factoryDetails.some((y) => y.output.product === x[0])
-    )
-    .sort((a, b) => b[1] - a[1]);
+  const sortedRates = [...accumulatedRates.entries()].sort(
+    (a, b) => a[1] - b[1]
+  );
   return (
-    <Collapse size='small'
+    <Collapse
+      size="small"
       items={[
         {
-          label: "Needed resources",
+          label: "Accumulated product rates",
           children: (
-            <div style={{ border: "solid grey"}}>
+            <div style={{ border: "solid grey" }}>
               <div
                 style={{
                   display: "flex",
                   flexWrap: "wrap",
                 }}
               >
-                {neededResources.map(([product, rate], i) => (
+                {sortedRates.map(([product, rate], i) => (
                   <div
                     key={product}
                     style={{
@@ -44,9 +42,9 @@ export const AccumulatedRates = (props: {
                       marginRight: 5,
                     }}
                   >
-                    {`${Math.round(-rate * 100) / 100}/min`}
+                    {`${Math.round(rate * 100) / 100}/min`}
                     <IconWithTooltip item={product} />
-                    {i < neededResources.length - 1 ? "," : ""}
+                    {i < sortedRates.length - 1 ? "," : ""}
                   </div>
                 ))}
               </div>

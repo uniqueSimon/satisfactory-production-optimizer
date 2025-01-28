@@ -1,14 +1,18 @@
 import { Button, Form, Select } from "antd";
 import { useLocalStorage } from "../../reusableComp/useLocalStorage";
 import { CustomCard } from "@/reusableComp/CustomCard";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { SavedFactories } from "./SavedFactories";
 import { DetailedView } from "./DetailedView";
-import { calculateFactoryDetails } from "./calculateFactoryDetails";
+import {
+  calculateFactoryDetails,
+  FactoryDetails,
+} from "./calculateFactoryDetails";
 import {
   CloseSquareOutlined,
   CopyOutlined,
   DeleteOutlined,
+  PlusSquareOutlined,
 } from "@ant-design/icons";
 import { NeededResources } from "../NeededRessources";
 import { EfficientTreeSelection } from "../EfficientTreeSelection";
@@ -17,7 +21,6 @@ import { ProductToProduce } from "../ProductToProduce";
 import { OutputRate } from "../OutputRate";
 import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
 import { DedicatedProducts } from "../DedicatedProducts";
-import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { calculateProductWeights, maxRates } from "@/calculateProductWeights";
 
 export interface SavedSetting {
@@ -29,25 +32,28 @@ export interface SavedSetting {
 }
 
 export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
-  const [savedSettings, setSavedSettings] = useLocalStorage<SavedSetting[]>(
-    "saved-settings",
+  const [savedFactories, setSavedFactories] = useLocalStorage<SavedSetting[][]>(
+    "saved-factories",
     []
   );
-  const [savedSettingsSeparate, setSavedSettingsSeparate] = useLocalStorage<
-    SavedSetting[]
-  >("saved-settings-separate", []);
   const [clickedFactoryId, setClickedFactoryId] = useState<number>();
   const [hoveredFactoryId, setHoveredFactoryId] = useState<number>();
-  const combinedSavedSettings = [...savedSettings, ...savedSettingsSeparate];
-  const combinedFactoryDetails = calculateFactoryDetails(combinedSavedSettings);
-  const factoryDetails = combinedFactoryDetails.slice(0, savedSettings.length);
-  const factoryDetailsSeparate = combinedFactoryDetails.slice(
-    savedSettings.length
+  const combinedSavedFactories = savedFactories.flat();
+  const combinedFactoryDetails = calculateFactoryDetails(
+    combinedSavedFactories
   );
+  const factoryDetails: FactoryDetails[][] = [];
+  let i = 0;
+  for (const savedFactoryPart of savedFactories) {
+    factoryDetails.push(
+      combinedFactoryDetails.slice(i, savedFactoryPart.length + i)
+    );
+    i += savedFactoryPart.length;
+  }
   const selectedFactory = combinedFactoryDetails.find(
     (x) => x.timestamp === clickedFactoryId
   );
-  const selectedSavedSettings = combinedSavedSettings.find(
+  const selectedSavedSettings = combinedSavedFactories.find(
     (x) => x.timestamp === clickedFactoryId
   );
   const rootRecipe = selectedSavedSettings
@@ -57,95 +63,30 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
           selectedSavedSettings.selectedRecipes.includes(x.recipeName)
       )
     : undefined;
-  const insertCard1 = (
+  const insertCard = (
+    clusterIndex: number,
     sourceId: number,
     targetId: number,
     closestEdge: "left" | "right"
   ) => {
-    const sourceItem = savedSettings.find((x) => x.timestamp === sourceId);
+    const cluster = savedFactories[clusterIndex];
+    const sourceItem = cluster.find((x) => x.timestamp === sourceId);
     if (!sourceItem) {
       return;
     }
-    const targetIndex = savedSettings.findIndex(
-      (x) => x.timestamp === targetId
-    );
+    const targetIndex = cluster.findIndex((x) => x.timestamp === targetId);
     const insertionIndex =
       closestEdge === "left" ? targetIndex : targetIndex + 1;
-    const firstPart = savedSettings
+    const firstPart = cluster
       .slice(0, insertionIndex)
       .filter((x) => x.timestamp !== sourceId);
-    const lastPart = savedSettings
+    const lastPart = cluster
       .slice(insertionIndex)
       .filter((x) => x.timestamp !== sourceId);
-    setSavedSettings([...firstPart, sourceItem, ...lastPart]);
+    savedFactories[clusterIndex] = [...firstPart, sourceItem, ...lastPart];
+    setSavedFactories([...savedFactories]);
   };
-  const insertCard2 = (
-    sourceId: number,
-    targetId: number,
-    closestEdge: "left" | "right"
-  ) => {
-    const sourceItem = savedSettingsSeparate.find(
-      (x) => x.timestamp === sourceId
-    )!;
-    if (!sourceItem) {
-      return;
-    }
-    const targetIndex = savedSettingsSeparate.findIndex(
-      (x) => x.timestamp === targetId
-    );
-    const insertionIndex =
-      closestEdge === "left" ? targetIndex : targetIndex + 1;
-    const firstPart = savedSettingsSeparate
-      .slice(0, insertionIndex)
-      .filter((x) => x.timestamp !== sourceId);
-    const lastPart = savedSettingsSeparate
-      .slice(insertionIndex)
-      .filter((x) => x.timestamp !== sourceId);
-    setSavedSettingsSeparate([...firstPart, sourceItem, ...lastPart]);
-  };
-  const refDropable1 = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const element = refDropable1.current!;
-    const cleanupDropTarget = dropTargetForElements({
-      element,
-      canDrop: ({ source }) =>
-        savedSettingsSeparate.some((x) => x.timestamp === source.data.id),
-      onDrop: ({ source }) => {
-        setSavedSettings([
-          ...savedSettings,
-          savedSettingsSeparate.find((x) => x.timestamp === source.data.id)!,
-        ]);
-        setSavedSettingsSeparate(
-          savedSettingsSeparate.filter((x) => x.timestamp !== source.data.id)
-        );
-      },
-    });
-    return () => {
-      cleanupDropTarget();
-    };
-  }, [savedSettings, savedSettingsSeparate]);
-  const refDropable2 = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const element = refDropable2.current!;
-    const cleanupDropTarget = dropTargetForElements({
-      element,
-      canDrop: ({ source }) =>
-        savedSettings.some((x) => x.timestamp === source.data.id),
 
-      onDrop: ({ source }) => {
-        setSavedSettingsSeparate([
-          ...savedSettingsSeparate,
-          savedSettings.find((x) => x.timestamp === source.data.id)!,
-        ]);
-        setSavedSettings(
-          savedSettings.filter((x) => x.timestamp !== source.data.id)
-        );
-      },
-    });
-    return () => {
-      cleanupDropTarget();
-    };
-  }, [savedSettings, savedSettingsSeparate]);
   const [excludedResources, setExcludedResources] = useState([]);
   const weights = calculateProductWeights(excludedResources);
   const allResources = [...maxRates.keys()];
@@ -165,56 +106,56 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
           onChange={setExcludedResources}
         />
       </Form.Item>
-      <SavedFactories
-        dropableRef={refDropable1}
-        onInsertCard={insertCard1}
-        factoryDetails={factoryDetails}
-        selectedFactoryId={clickedFactoryId}
-        savedSettings={savedSettings}
-        setSavedSettings={setSavedSettings}
-        onChooseSavedSetting={setClickedFactoryId}
-        onMouseEnter={setHoveredFactoryId}
-        onMouseLeave={() => setHoveredFactoryId(undefined)}
-        onAddNew={() => {
-          const timestamp = Date.now();
-          setSavedSettings([
-            ...savedSettings,
-            {
-              timestamp,
-              productToProduce: "",
-              wantedOutputRate: 0,
-              selectedRecipes: [],
-              dedicatedProducts: [],
-            },
-          ]);
-          setClickedFactoryId(timestamp);
-        }}
-      />
-      <SavedFactories
-        dropableRef={refDropable2}
-        onInsertCard={insertCard2}
-        factoryDetails={factoryDetailsSeparate}
-        selectedFactoryId={clickedFactoryId}
-        savedSettings={savedSettingsSeparate}
-        setSavedSettings={setSavedSettingsSeparate}
-        onChooseSavedSetting={setClickedFactoryId}
-        onMouseEnter={setHoveredFactoryId}
-        onMouseLeave={() => setHoveredFactoryId(undefined)}
-        onAddNew={() => {
-          const timestamp = Date.now();
-          setSavedSettingsSeparate([
-            ...savedSettingsSeparate,
-            {
-              timestamp,
-              productToProduce: "",
-              wantedOutputRate: 0,
-              selectedRecipes: [],
-              dedicatedProducts: [],
-            },
-          ]);
-          setClickedFactoryId(timestamp);
-        }}
-      />
+      {savedFactories.map((cluster, index) => (
+        <SavedFactories
+          key={index}
+          onInsertCard={(...arg) => insertCard(index, ...arg)}
+          factoryDetails={factoryDetails[index] ?? []}
+          selectedFactoryId={clickedFactoryId}
+          cluster={cluster}
+          setSavedSettings={(factories) => {
+            savedFactories[index] = factories;
+            setSavedFactories([...savedFactories]);
+          }}
+          onChooseSavedSetting={setClickedFactoryId}
+          onMouseEnter={setHoveredFactoryId}
+          onMouseLeave={() => setHoveredFactoryId(undefined)}
+          onAddNew={() => {
+            const timestamp = Date.now();
+            savedFactories[index] = [
+              ...(savedFactories[index] ?? []),
+              {
+                timestamp,
+                productToProduce: "",
+                wantedOutputRate: 0,
+                selectedRecipes: [],
+                dedicatedProducts: [],
+              },
+            ];
+            setSavedFactories([...savedFactories]);
+            setClickedFactoryId(timestamp);
+          }}
+          onDropIntoCluster={(sourceId) => {
+            setSavedFactories((prev) => {
+              const sourceFactory = prev
+                .flat()
+                .find((x) => x.timestamp === sourceId)!;
+              const withoutSource = prev.map((cluster) =>
+                cluster.filter((x) => x.timestamp !== sourceId)
+              );
+              withoutSource[index].push(sourceFactory);
+              return [...withoutSource];
+            });
+          }}
+          onRemoveCluster={() =>
+            setSavedFactories((prev) => [...prev.filter((_, i) => i !== index)])
+          }
+        />
+      ))}
+      <Button onClick={() => setSavedFactories((prev) => [...prev, []])}>
+        <PlusSquareOutlined />
+        Add factory cluster
+      </Button>
       <div style={{ display: "flex" }}>
         {selectedFactory && (
           <>
@@ -222,14 +163,9 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
               <Button
                 onClick={() => {
                   setClickedFactoryId(undefined);
-                  setSavedSettings(
-                    savedSettings.filter(
-                      (x) => x.timestamp !== clickedFactoryId
-                    )
-                  );
-                  setSavedSettingsSeparate(
-                    savedSettingsSeparate.filter(
-                      (x) => x.timestamp !== clickedFactoryId
+                  setSavedFactories(
+                    savedFactories.map((part) =>
+                      part.filter((x) => x.timestamp !== clickedFactoryId)
                     )
                   );
                 }}
@@ -242,10 +178,13 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
               <Button
                 onClick={() => {
                   const timestamp = Date.now();
-                  setSavedSettings([
-                    ...savedSettings,
-                    { ...selectedSavedSettings!, timestamp },
-                  ]);
+                  const clusterIndex = savedFactories.findIndex((x) =>
+                    x.some((y) => y.timestamp === clickedFactoryId)
+                  );
+                  const source = savedFactories[clusterIndex].find(
+                    (x) => x.timestamp === clickedFactoryId
+                  )!;
+                  savedFactories[clusterIndex].push({ ...source, timestamp });
                   setClickedFactoryId(timestamp);
                 }}
               >
@@ -284,14 +223,14 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
                   selectedSavedSettings.selectedRecipes = [];
                   selectedSavedSettings.dedicatedProducts = [];
                   selectedSavedSettings.productToProduce = product;
-                  setSavedSettings([...savedSettings]);
+                  setSavedFactories([...savedFactories]);
                 }}
               />
               <OutputRate
                 rootRecipe={rootRecipe}
                 setWantedOutputRate={(wantedOutputRate) => {
                   selectedSavedSettings.wantedOutputRate = wantedOutputRate;
-                  setSavedSettings([...savedSettings]);
+                  setSavedFactories([...savedFactories]);
                 }}
                 wantedOutputRate={selectedSavedSettings.wantedOutputRate}
               />
@@ -308,7 +247,7 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
                 value={selectedSavedSettings.selectedRecipes}
                 onChange={(selectedRecipes) => {
                   selectedSavedSettings.selectedRecipes = selectedRecipes;
-                  setSavedSettings([...savedSettings]);
+                  setSavedFactories([...savedFactories]);
                 }}
               />
             </Form.Item>
@@ -320,7 +259,7 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
                 dedicatedProducts={selectedSavedSettings.dedicatedProducts}
                 setDedicatedProducts={(dedicatedProducts) => {
                   selectedSavedSettings.dedicatedProducts = dedicatedProducts;
-                  setSavedSettings([...savedSettings]);
+                  setSavedFactories([...savedFactories]);
                 }}
               />
             )}
@@ -333,7 +272,7 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
             wantedOutputRate={selectedSavedSettings.wantedOutputRate}
             setSelectedRecipes={(selectedRecipes) => {
               selectedSavedSettings.selectedRecipes = selectedRecipes;
-              setSavedSettings([...savedSettings]);
+              setSavedFactories([...savedFactories]);
             }}
             weights={weights}
           />
@@ -350,7 +289,7 @@ export const FactoryPlanner = (props: { availableRecipes: Recipe[] }) => {
                 }
                 setSelectedRecipes={(selectedRecipes) => {
                   selectedSavedSettings.selectedRecipes = selectedRecipes;
-                  setSavedSettings([...savedSettings]);
+                  setSavedFactories([...savedFactories]);
                 }}
                 weights={weights}
               />

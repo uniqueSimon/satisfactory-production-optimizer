@@ -34,7 +34,7 @@ export const App = () => {
     >
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
-        <FactoryPlanner availableRecipes={availableRecipes} />
+        <FactoryPlanner availableRecipes={allRecipes/* availableRecipes */} />
         <AlternateRecipes
           foundAltRecipes={foundAltRecipes}
           setFoundAltRecipes={setFoundAltRecipes}

@@ -3,14 +3,19 @@ import { Button, Tooltip } from "antd";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 import { useDraggable } from "@/reusableComp/useDraggable";
 import { FactoryDetails } from "./calculateFactoryDetails";
-import { CaretUpOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import {
+  CaretUpOutlined,
+  CloseSquareOutlined,
+  ExclamationCircleOutlined,
+} from "@ant-design/icons";
 import { CustomCard } from "@/reusableComp/CustomCard";
 import { AccumulatedRates } from "./AccumulatedRates";
+import { useEffect, useRef } from "react";
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
 export const SavedFactories = (props: {
-  dropableRef: React.RefObject<HTMLDivElement>;
   factoryDetails: FactoryDetails[];
-  savedSettings: SavedSetting[];
+  cluster: SavedSetting[];
   selectedFactoryId?: number;
   setSavedSettings: (value: SavedSetting[]) => void;
   onChooseSavedSetting: (timestamp: number) => void;
@@ -22,47 +27,71 @@ export const SavedFactories = (props: {
     targetId: number,
     closestEdge: "left" | "right"
   ) => void;
+  onDropIntoCluster: (sourceId: number) => void;
+  onRemoveCluster: () => void;
 }) => {
+  const refDropable = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = refDropable.current!;
+    const cleanupDropTarget = dropTargetForElements({
+      element,
+      canDrop: ({ source }) =>
+        !props.cluster.some((x) => x.timestamp === source.data.id),
+      onDrop: ({ source }) => props.onDropIntoCluster(source.data.id as number),
+    });
+    return () => {
+      cleanupDropTarget();
+    };
+  }, [props.cluster]);
   return (
     <CustomCard>
       <div
-        ref={props.dropableRef}
-        style={{ display: "flex", flexWrap: "wrap", marginBottom: 10 }}
+        ref={refDropable}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
       >
-        {props.factoryDetails.map((details) => {
-          const neededOutputRate = details.targetFactories.reduce(
-            (sum, current) => sum + current.rate,
-            0
-          );
-          return (
-            <SavedSettingsButton
-              key={details.timestamp}
-              timestamp={details.timestamp}
-              product={details.output.product}
-              rate={details.output.rate}
-              selected={props.selectedFactoryId === details.timestamp}
-              insufficientOutput={details.output.rate < neededOutputRate}
-              insufficientInputs={details.sourceFactories.some(
-                (x) =>
-                  x.rate <
-                  details.input.find((y) => y.product === x.product)!.rate
-              )}
-              isTargetFactory={details.sourceFactories.some(
-                (x) => x.timestamp === props.selectedFactoryId
-              )}
-              isSourceFactory={details.targetFactories.some(
-                (x) => x.timestamp === props.selectedFactoryId
-              )}
-              onSelect={() => props.onChooseSavedSetting(details.timestamp)}
-              onMouseEnter={() => props.onMouseEnter(details.timestamp)}
-              onMouseLeave={() => props.onMouseLeave()}
-              onDrop={props.onInsertCard}
-            />
-          );
-        })}
-        <div style={{ border: "solid", borderColor: "white" }}>
-          <Button onClick={props.onAddNew}>+ new</Button>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {props.factoryDetails.map((details) => {
+            const neededOutputRate = details.targetFactories.reduce(
+              (sum, current) => sum + current.rate,
+              0
+            );
+            return (
+              <SavedSettingsButton
+                key={details.timestamp}
+                timestamp={details.timestamp}
+                product={details.output.product}
+                rate={details.output.rate}
+                selected={props.selectedFactoryId === details.timestamp}
+                insufficientOutput={details.output.rate < neededOutputRate}
+                insufficientInputs={details.sourceFactories.some(
+                  (x) =>
+                    x.rate <
+                    details.input.find((y) => y.product === x.product)!.rate
+                )}
+                isTargetFactory={details.sourceFactories.some(
+                  (x) => x.timestamp === props.selectedFactoryId
+                )}
+                isSourceFactory={details.targetFactories.some(
+                  (x) => x.timestamp === props.selectedFactoryId
+                )}
+                onSelect={() => props.onChooseSavedSetting(details.timestamp)}
+                onMouseEnter={() => props.onMouseEnter(details.timestamp)}
+                onMouseLeave={() => props.onMouseLeave()}
+                onDrop={props.onInsertCard}
+              />
+            );
+          })}
+          <div style={{ border: "solid", borderColor: "white" }}>
+            <Button onClick={props.onAddNew}>+ new</Button>
+          </div>
         </div>
+        <Button onClick={props.onRemoveCluster} style={{}}>
+          <CloseSquareOutlined />
+        </Button>
       </div>
       <AccumulatedRates factoryDetails={props.factoryDetails} />
     </CustomCard>

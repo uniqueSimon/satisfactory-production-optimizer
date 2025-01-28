@@ -5,9 +5,13 @@ export const useLocalStorage = <T>(storageKey: string, fallbackState: T) => {
   const [value, setValue] = useState<T>(
     stored ? JSON.parse(stored) : fallbackState
   );
-  const setValueWithLocalStorage = (value: T) => {
-    setValue(value);
-    localStorage.setItem(storageKey, JSON.stringify(value));
+  const setValueWithLocalStorage = (newValue: React.SetStateAction<T>) => {
+    setValue(newValue);
+    const valueToStore =
+      typeof newValue === "function"
+        ? (newValue as (prevState: T) => T)(value)
+        : newValue;
+    localStorage.setItem(storageKey, JSON.stringify(valueToStore));
   };
   return [value, setValueWithLocalStorage] as const;
 };
