@@ -1,24 +1,35 @@
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
-import { FactoryDetails } from "./calculateFactoryDetails";
-import { Collapse } from "antd";
+import { Collapse, Tooltip } from "antd";
+import { SavedFactory } from "./FactoryPlanner";
+import { RateBalance } from "./accumulateRates";
+import { maxRates } from "@/calculateProductWeights";
 
 export const AccumulatedRates = (props: {
-  factoryDetails: FactoryDetails[];
+  cluster: SavedFactory[];
+  rateBalance: RateBalance[];
+  showResources: boolean;
+  selectedFactory?: SavedFactory;
+  hoveredFactory?: SavedFactory;
+  setHoveredAccumulatedProduct: (product: string | null) => void;
 }) => {
-  const accumulatedRates = new Map<string, number>();
-  const accumulate = (product: string, rate: number) => {
-    const existing = accumulatedRates.get(product);
-    accumulatedRates.set(product, (existing ?? 0) + rate);
-  };
-  for (const factory of props.factoryDetails) {
-    accumulate(factory.output.product, factory.output.rate);
-    for (const input of factory.input) {
-      accumulate(input.product, -input.rate);
-    }
-  }
-  const sortedRates = [...accumulatedRates.entries()].sort(
-    (a, b) => a[1] - b[1]
+  const allResources = [...maxRates.keys()];
+  const filtered = props.rateBalance.filter(
+    (x) =>
+      Math.round(x.rate * 100) !== 0 &&
+      (props.showResources || !allResources.includes(x.product))
   );
+  const relevantProducts = props.selectedFactory
+    ? [
+        props.selectedFactory.productToProduce,
+        ...props.selectedFactory.input.map((x) => x.product),
+      ]
+    : [];
+  const relevantProductsHovered = props.hoveredFactory
+    ? [
+        props.hoveredFactory.productToProduce,
+        ...props.hoveredFactory.input.map((x) => x.product),
+      ]
+    : [];
   return (
     <Collapse
       size="small"
@@ -33,20 +44,65 @@ export const AccumulatedRates = (props: {
                   flexWrap: "wrap",
                 }}
               >
-                {sortedRates.map(([product, rate], i) => (
-                  <div
-                    key={product}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      marginRight: 5,
-                    }}
-                  >
-                    {`${Math.round(rate * 100) / 100}/min`}
-                    <IconWithTooltip item={product} />
-                    {i < sortedRates.length - 1 ? "," : ""}
-                  </div>
-                ))}
+                {filtered.map((productRate, i) => {
+                  const isResource = allResources.includes(productRate.product);
+                  const notEnough =
+                    productRate.rate + productRate.rateFromOtherClusters < 0;
+                  const relevantForClicked = relevantProducts.includes(
+                    productRate.product
+                  );
+                  const relevantForHovered = relevantProductsHovered.includes(
+                    productRate.product
+                  );
+                  return (
+                    <div
+                      key={productRate.product}
+                      onMouseEnter={() =>
+                        props.setHoveredAccumulatedProduct(productRate.product)
+                      }
+                      onMouseLeave={() =>
+                        props.setHoveredAccumulatedProduct(null)
+                      }
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginRight: 5,
+                        color: isResource
+                          ? "lightgrey"
+                          : notEnough
+                          ? "red"
+                          : undefined,
+                        border:
+                          relevantForHovered && !relevantForClicked
+                            ? "dotted"
+                            : "solid",
+                        borderColor:
+                          relevantForClicked || relevantForHovered
+                            ? "grey"
+                            : "white",
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Tooltip
+                        title={
+                          isResource || !notEnough
+                            ? ""
+                            : `${
+                                productRate.rate < 0 ? "Produced" : "Needed"
+                              }: ${Math.abs(
+                                Math.round(
+                                  productRate.rateFromOtherClusters * 100
+                                ) / 100
+                              )}/min`
+                        }
+                      >
+                        {`${Math.round(productRate.rate * 100) / 100}/min`}
+                      </Tooltip>
+                      <IconWithTooltip item={productRate.product} />
+                      {i < filtered.length - 1 ? "," : ""}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ),

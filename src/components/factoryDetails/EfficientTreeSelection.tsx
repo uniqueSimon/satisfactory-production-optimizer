@@ -1,6 +1,6 @@
 import { Select } from "antd";
-import { Recipe } from "../App";
-import { RecipeTooltip } from "../reusableComp/RecipeTooltip";
+import { Recipe } from "../../App";
+import { RecipeTooltip } from "../../reusableComp/RecipeTooltip";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 import { DownCircleOutlined } from "@ant-design/icons";
 

@@ -12,8 +12,8 @@ export const maxRates = new Map([
   ["LiquidOil", 12600],
   ["OreBauxite", 12300],
   ["OreGold", 15000],
-  ["Uranium", 2100],
-  ["SAMIngot", 10200],
+  ["OreUranium", 2100],
+  ["SAM", 10200],
   ["Sulfur", 10800],
   ["PolymerResin", 12600 * 6],
 ]);

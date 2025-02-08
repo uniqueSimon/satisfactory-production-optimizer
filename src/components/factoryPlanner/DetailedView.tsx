@@ -1,38 +1,24 @@
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
-import { FactoryDetails } from "./calculateFactoryDetails";
+import { SavedFactory } from "./FactoryPlanner";
 
-export const DetailedView = (props: { factoryDetails: FactoryDetails }) => {
-  const neededOutputRate = props.factoryDetails.targetFactories.reduce(
-    (sum, current) => sum + current.rate,
-    0
-  );
+export const DetailedView = (props: { savedSetting: SavedFactory }) => {
   return (
     <div style={{ display: "flex" }}>
       <div>
-        {props.factoryDetails.input.map((x) => {
-          const source = props.factoryDetails.sourceFactories.find(
-            (source) => source.product === x.product
-          );
+        {props.savedSetting.input.map((x) => {
           return (
             <div key={x.product} style={{ display: "flex", margin: 10 }}>
               <IconWithTooltip item={x.product} />
-              <RateWithArrow rate={x.rate} availableRate={source?.rate} />
+              <RateWithArrow rate={x.rate} />
             </div>
           );
         })}
       </div>
       <IconWithRate
-        {...props.factoryDetails.output}
-        insufficientOutput={props.factoryDetails.output.rate < neededOutputRate}
+        rate={props.savedSetting.wantedOutputRate}
+        product={props.savedSetting.productToProduce}
+        insufficientOutput={false}
       />
-      <div>
-        {props.factoryDetails.targetFactories.map((x) => (
-          <div key={x.timestamp} style={{ display: "flex", margin: 10 }}>
-            <RateWithArrow rate={x.rate} />
-            <IconWithTooltip item={x.product} />
-          </div>
-        ))}
-      </div>
     </div>
   );
 };

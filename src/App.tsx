@@ -1,8 +1,11 @@
 import { Form, Typography } from "antd";
-import { allRecipes } from "./parseGameData/allRecipesFromConfig";
+import {
+  FactoryPlanner,
+  SavedFactory,
+} from "./components/factoryPlanner/FactoryPlanner";
 import { useLocalStorage } from "./reusableComp/useLocalStorage";
-import { FactoryPlanner } from "./components/factoryPlanner/FactoryPlanner";
-import { AlternateRecipes } from "./components/AlternateRecipes";
+import { useState } from "react";
+import { FactoryDetails } from "./components/factoryDetails/FactoryDetails";
 
 export interface Recipe {
   recipeName: string;
@@ -16,13 +19,15 @@ export interface Recipe {
 }
 
 export const App = () => {
-  const [foundAltRecipes, setFoundAltRecipes] = useLocalStorage<string[]>(
-    "found-alt-recipes",
+  const [savedFactories, setSavedFactories] = useLocalStorage<SavedFactory[][]>(
+    "saved-factories",
     []
   );
-  /* const availableRecipes = allRecipes.filter(
-    (x) => !x.isAlternate || foundAltRecipes.includes(x.recipeName)
-  ); */
+  const [clickedFactoryId, setClickedFactoryId] = useState<number>();
+  const combinedSavedFactories = savedFactories.flat();
+  const selectedSavedSettings = combinedSavedFactories.find(
+    (x) => x.id === clickedFactoryId
+  );
   return (
     <div
       style={{
@@ -34,11 +39,26 @@ export const App = () => {
     >
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
-        <FactoryPlanner availableRecipes={allRecipes/* availableRecipes */} />
-        <AlternateRecipes
-          foundAltRecipes={foundAltRecipes}
-          setFoundAltRecipes={setFoundAltRecipes}
+        <FactoryPlanner
+          clickedFactoryId={clickedFactoryId}
+          savedFactories={savedFactories}
+          setClickedFactoryId={setClickedFactoryId}
+          setSavedFactories={setSavedFactories}
         />
+        {selectedSavedSettings && (
+          <FactoryDetails
+            savedFactory={selectedSavedSettings}
+            setSavedFactory={(savedFactory) =>
+              setSavedFactories((prev) =>
+                prev.map((cluster) =>
+                  cluster.map((factory) =>
+                    factory.id === clickedFactoryId ? savedFactory : factory
+                  )
+                )
+              )
+            }
+          />
+        )}
       </Form>
     </div>
   );
