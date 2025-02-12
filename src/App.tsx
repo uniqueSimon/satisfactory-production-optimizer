@@ -8,24 +8,15 @@ import { useState } from "react";
 import { FactoryDetails } from "./components/factoryDetails/FactoryDetails";
 import { calculateProductWeights, maxRates } from "./calculateProductWeights";
 import { AlternateRecipes } from "./components/AlternateRecipes";
+import allProductsJson from "./gameData/allProducts.json";
+import allRecipesJson from "./gameData/allRecipes.json";
+import displayNamesJson from "./gameData/displayNames.json";
 
-export const allProducts: string[] = [];
-fetch("public/gameData/allProducts.json")
-  .then((response) => response.json())
-  .then((data) => allProducts.push(...data));
-
-export const allRecipes: Recipe[] = [];
-fetch("public/gameData/allRecipes.json")
-  .then((response) => response.json())
-  .then((data) => allRecipes.push(...data));
-
-export const productDisplayNameMapping = new Map<string, string>();
-fetch("public/gameData/displayNames.json")
-  .then((response) => response.json())
-  .then((data: [string, string][]) =>
-    data.forEach((x) => productDisplayNameMapping.set(x[0], x[1]))
-  );
-
+export const allProducts = allProductsJson;
+export const allRecipes = allRecipesJson;
+export const productDisplayNameMapping = new Map(
+  displayNamesJson as [string, string][]
+);
 
 export interface Recipe {
   recipeName: string;
