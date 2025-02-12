@@ -6,46 +6,40 @@ import { DedicatedProducts } from "./DedicatedProducts";
 import { EfficientTreeSelection } from "./EfficientTreeSelection";
 import { SavedFactory } from "../factoryPlanner/FactoryPlanner";
 import { calculateTreeResults } from "@/calculateTreeResults";
-import { useState } from "react";
-import { calculateProductWeights, maxRates } from "@/calculateProductWeights";
-import { AlternateRecipes } from "../AlternateRecipes";
-import { useLocalStorage } from "@/reusableComp/useLocalStorage";
 import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
+import { Recipe } from "@/App";
+import { NeededResources } from "../NeededRessources";
 
 export const FactoryDetails = (props: {
   savedFactory: SavedFactory;
   setSavedFactory: (savedFactory: SavedFactory) => void;
+  weights: Map<
+    string,
+    {
+      recipeName: string;
+      weight: number;
+    }[]
+  >;
+  availableRecipes: Recipe[];
 }) => {
-  const [foundAltRecipes, setFoundAltRecipes] = useLocalStorage<string[]>(
-    "found-alt-recipes",
-    []
-  );
-  const availableRecipes = allRecipes; /* .filter(
-        (x) => !x.isAlternate || foundAltRecipes.includes(x.recipeName)
-      ); */
   const { productRates, machines } = calculateTreeResults(
     props.savedFactory.productToProduce,
     props.savedFactory.wantedOutputRate,
     props.savedFactory.selectedRecipes,
-    availableRecipes
+    props.availableRecipes
   );
-  const rootRecipe = availableRecipes.find(
+  const rootRecipe = props.availableRecipes.find(
     (x) =>
       x.product.name === props.savedFactory.productToProduce &&
       props.savedFactory.selectedRecipes.includes(x.recipeName)
   );
-  const [excludedResources, setExcludedResources] = useState([]);
-
-  const weights = calculateProductWeights(excludedResources);
-  const allResources = [...maxRates.keys()];
-
   const changeFactory = (property: string, value: any) => {
     const updated = { ...props.savedFactory, [property]: value };
     const { productRates } = calculateTreeResults(
       updated.productToProduce,
       updated.wantedOutputRate,
       updated.selectedRecipes,
-      availableRecipes
+      props.availableRecipes
     );
     const input = Array.from(productRates)
       .filter(([_, value]) => value.type === "RESOURCE")
@@ -54,20 +48,6 @@ export const FactoryDetails = (props: {
   };
   return (
     <>
-      <Form.Item label="Resources to exclude from weighting points">
-        <Select
-          style={{ display: "block" }}
-          mode="multiple"
-          allowClear={true}
-          options={allResources.map((x) => ({
-            key: x,
-            value: x,
-            label: x,
-          }))}
-          value={excludedResources}
-          onChange={setExcludedResources}
-        />
-      </Form.Item>
       <CustomCard>
         <div style={{ display: "flex" }}>
           <ProductToProduce
@@ -94,7 +74,7 @@ export const FactoryDetails = (props: {
           <Select
             mode="multiple"
             allowClear={true}
-            options={availableRecipes.map((x) => ({
+            options={props.availableRecipes.map((x) => ({
               key: x.recipeName,
               value: x.recipeName,
               label: x.displayName,
@@ -118,16 +98,17 @@ export const FactoryDetails = (props: {
           />
         )}
       </CustomCard>
+      <NeededResources machines={machines} />
       <EfficientTreeSelection
         dedicatedProducts={props.savedFactory.dedicatedProducts ?? []}
         productToProduce={props.savedFactory.productToProduce}
         selectedRecipes={props.savedFactory.selectedRecipes}
-        availableRecipes={availableRecipes}
+        availableRecipes={props.availableRecipes}
         wantedOutputRate={props.savedFactory.wantedOutputRate}
         setSelectedRecipes={(selectedRecipes) =>
           changeFactory("selectedRecipes", selectedRecipes)
         }
-        weights={weights}
+        weights={props.weights}
       />
       <div style={{ display: "flex" }}>
         {(props.savedFactory.dedicatedProducts ?? []).map((product) => (
@@ -136,19 +117,15 @@ export const FactoryDetails = (props: {
             dedicatedProducts={props.savedFactory.dedicatedProducts}
             productToProduce={product}
             selectedRecipes={props.savedFactory.selectedRecipes}
-            availableRecipes={availableRecipes}
+            availableRecipes={props.availableRecipes}
             wantedOutputRate={productRates.get(product)!.rate}
             setSelectedRecipes={(selectedRecipes) =>
               changeFactory("selectedRecipes", selectedRecipes)
             }
-            weights={weights}
+            weights={props.weights}
           />
         ))}
       </div>
-      <AlternateRecipes
-        foundAltRecipes={foundAltRecipes}
-        setFoundAltRecipes={setFoundAltRecipes}
-      />
     </>
   );
 };

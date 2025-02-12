@@ -1,5 +1,4 @@
-import { Table } from "antd";
-import { RoundedNumber } from "../reusableComp/RoundedNumber";
+import { CustomCard } from "@/reusableComp/CustomCard";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 
 enum MachineSpace {
@@ -23,33 +22,23 @@ export const NeededResources = (props: { machines: Map<string, number> }) => {
   });
   sum /= MachineSpace.ConstructorMk1;
   return (
-    <Table
-      style={{ border: "solid grey", borderRadius: 8 }}
-      columns={[
-        {
-          dataIndex: "machineType",
-          title: "Machine type",
-          render: (producedIn) =>
-            producedIn === "Weighted sum" ? (
-              "Weighted sum"
-            ) : (
-              <IconWithTooltip item={producedIn} />
-            ),
-        },
-        {
-          dataIndex: "count",
-          title: "Count",
-          render: (rate) => <RoundedNumber number={rate} />,
-        },
-      ]}
-      dataSource={[...props.machines.entries(), ["Weighted sum", sum]].map(
-        (x) => ({
-          key: x[0],
-          machineType: x[0],
-          count: x[1],
-        })
-      )}
-      pagination={false}
-    />
+    <CustomCard title="Needed space">
+      <div style={{ display: "flex", alignItems: "center" }}>
+        {[...props.machines.entries()].map(([machineType, count]) => (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              border: "solid grey",
+              borderRadius: 8,
+            }}
+          >
+            {Math.round(count * 100) / 100}
+            <IconWithTooltip item={machineType} />
+          </div>
+        ))}
+      </div>
+      Sum in units of constructors: {Math.round(sum * 100) / 100}
+    </CustomCard>
   );
 };

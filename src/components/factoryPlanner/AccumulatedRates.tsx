@@ -14,9 +14,7 @@ export const AccumulatedRates = (props: {
 }) => {
   const allResources = [...maxRates.keys()];
   const filtered = props.rateBalance.filter(
-    (x) =>
-      Math.round(x.rate * 100) !== 0 &&
-      (props.showResources || !allResources.includes(x.product))
+    (x) => props.showResources || !allResources.includes(x.product)
   );
   const relevantProducts = props.selectedFactory
     ? [
@@ -72,7 +70,7 @@ export const AccumulatedRates = (props: {
                           : notEnough
                           ? "red"
                           : undefined,
-                        border:
+                        borderStyle:
                           relevantForHovered && !relevantForClicked
                             ? "dotted"
                             : "solid",

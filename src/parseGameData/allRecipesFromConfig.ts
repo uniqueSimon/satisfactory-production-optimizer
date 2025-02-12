@@ -109,19 +109,6 @@ for (const item of recipeNativeClass!.Classes) {
         tier: schematic.tier,
         isAlternate: schematic.isAlternate,
       });
-      /* allRecipes.push({
-        recipeName: `${recipeName}2`,
-        displayName: `${displayName} 2`,
-        product: products[1],
-        ingredients: [
-          ...ingredients,
-          { name: products[0].name, amount: -products[0].amount },
-        ],
-        time,
-        producedIn,
-        tier: schematic.tier,
-        isAlternate: schematic.isAlternate,
-      }); */
     } else if (products.length === 1) {
       allRecipes.push({
         recipeName,
@@ -138,29 +125,6 @@ for (const item of recipeNativeClass!.Classes) {
     }
   }
 }
-/* allRecipes.push({
-  recipeName: "EfficientPlastic",
-  displayName: "Efficient Plastic",
-  product: { name: "Plastic", amount: 9 },
-  ingredients: [
-    { name: "LiquidOil", amount: 3 },
-    { name: "Water", amount: 10 },
-  ],
-  time: 9,
-  producedIn: "CUSTOM",
-});
-allRecipes.push({
-  recipeName: "EfficientRubber",
-  displayName: "Efficient Rubber",
-  product: { name: "Rubber", amount: 9 },
-  ingredients: [
-    { name: "LiquidOil", amount: 3 },
-    { name: "Water", amount: 10 },
-  ],
-  time: 9,
-  producedIn: "CUSTOM",
-}); */
-
 const allProductsSet = new Set<string>();
 for (const recipe of allRecipes) {
   allProductsSet.add(recipe.product.name);
