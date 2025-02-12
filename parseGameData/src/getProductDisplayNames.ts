@@ -1,3 +1,4 @@
+import fs from "fs";
 import gameData from "./gameData.json";
 
 interface ItemClass {
@@ -15,4 +16,4 @@ for (const recipeNativeClass of recipeNativeClasses) {
     productDisplayNameMapping.set(productName, displayName);
   }
 }
-export { productDisplayNameMapping };
+export const displayNames = [...productDisplayNameMapping.entries()];

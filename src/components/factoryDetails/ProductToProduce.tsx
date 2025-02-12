@@ -1,6 +1,5 @@
+import { allProducts, productDisplayNameMapping } from "@/App";
 import { Form, Select } from "antd";
-import { productDisplayNameMapping } from "../../parseGameData/getProductDisplayNames";
-import { allProducts } from "../../parseGameData/allRecipesFromConfig";
 
 export const ProductToProduce = (props: {
   productToProduce: string;

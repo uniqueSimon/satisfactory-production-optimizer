@@ -1,6 +1,6 @@
 import { calculateTreeResults } from "@/calculateTreeResults";
 import { SavedFactory } from "./FactoryPlanner";
-import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
+import { allRecipes } from "@/App";
 
 export const calculateFactoryDetails = (
   savedSettings: SavedFactory[]

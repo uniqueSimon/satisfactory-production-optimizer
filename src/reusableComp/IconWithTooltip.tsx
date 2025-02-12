@@ -1,4 +1,4 @@
-import { productDisplayNameMapping } from "@/parseGameData/getProductDisplayNames";
+import { productDisplayNameMapping } from "@/App";
 import { Tooltip } from "antd";
 
 export const IconWithTooltip = (props: { item: string; height?: number }) => (

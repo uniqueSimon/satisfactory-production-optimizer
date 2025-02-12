@@ -1,6 +1,17 @@
-import { Recipe } from "../App";
 import gameData from "./gameData.json";
+import fs from "fs";
 import { recipeSchematicMapping } from "./recipeSchematicMapping";
+
+export interface Recipe {
+  recipeName: string;
+  displayName: string;
+  product: { name: string; amount: number };
+  ingredients: { name: string; amount: number }[];
+  time: number;
+  isAlternate: boolean;
+  producedIn: string;
+  tier: number;
+}
 
 export interface FGRecipe {
   NativeClass: "/Script/CoreUObject.Class'/Script/FactoryGame.FGRecipe'";

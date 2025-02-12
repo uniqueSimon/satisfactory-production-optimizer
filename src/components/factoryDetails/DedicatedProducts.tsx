@@ -1,5 +1,5 @@
+import { productDisplayNameMapping } from "@/App";
 import { Form, Select } from "antd";
-import { productDisplayNameMapping } from "../../parseGameData/getProductDisplayNames";
 
 export const DedicatedProducts = (props: {
   currentProducts: string[];

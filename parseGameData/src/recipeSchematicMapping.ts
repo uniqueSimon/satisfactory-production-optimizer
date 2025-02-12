@@ -1,3 +1,4 @@
+import fs from "fs";
 import { FGRecipe, Schematic } from "./allRecipesFromConfig";
 import gameData from "./gameData.json";
 

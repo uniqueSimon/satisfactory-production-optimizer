@@ -1,6 +1,5 @@
 import { Button, Collapse, Form, Select, Switch, Table } from "antd";
-import { allProducts, allRecipes } from "../parseGameData/allRecipesFromConfig";
-import { Recipe } from "@/App";
+import { allProducts, allRecipes, Recipe } from "@/App";
 import { IconWithTooltip } from "@/reusableComp/IconWithTooltip";
 import { useState } from "react";
 

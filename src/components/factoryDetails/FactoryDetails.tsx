@@ -6,8 +6,7 @@ import { DedicatedProducts } from "./DedicatedProducts";
 import { EfficientTreeSelection } from "./EfficientTreeSelection";
 import { SavedFactory } from "../factoryPlanner/FactoryPlanner";
 import { calculateTreeResults } from "@/calculateTreeResults";
-import { allRecipes } from "@/parseGameData/allRecipesFromConfig";
-import { Recipe } from "@/App";
+import { allRecipes, Recipe } from "@/App";
 import { NeededResources } from "../NeededRessources";
 
 export const FactoryDetails = (props: {

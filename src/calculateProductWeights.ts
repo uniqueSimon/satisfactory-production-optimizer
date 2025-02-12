@@ -1,5 +1,4 @@
-import { Recipe } from "./App";
-import { allProducts, allRecipes } from "./parseGameData/allRecipesFromConfig";
+import { allProducts, allRecipes, Recipe } from "./App";
 
 export const maxRates = new Map([
   ["Coal", 42300],

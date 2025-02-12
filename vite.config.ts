@@ -5,7 +5,13 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), VitePWA({ injectRegister: "auto" })],
+  plugins: [
+    react(),
+    VitePWA({
+      injectRegister: "auto",
+      manifest: { theme_color: "#ffffff" },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
