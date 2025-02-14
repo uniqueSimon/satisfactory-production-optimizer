@@ -11,6 +11,8 @@ import { AlternateRecipes } from "./components/AlternateRecipes";
 import allProductsJson from "./gameData/allProducts.json";
 import allRecipesJson from "./gameData/allRecipes.json";
 import displayNamesJson from "./gameData/displayNames.json";
+import { ExportLocalStorage } from "./components/ExportLocalStorage";
+import { ImportLocalStorage } from "./components/ImportLocalStorage";
 
 export const allProducts = allProductsJson;
 export const allRecipes = allRecipesJson;
@@ -32,7 +34,7 @@ export interface Recipe {
 export const App = () => {
   const [savedFactories, setSavedFactories] = useLocalStorage<SavedFactory[][]>(
     "saved-factories",
-    []
+    [[]]
   );
   const [foundAltRecipes, setFoundAltRecipes] = useLocalStorage<string[]>(
     "found-alt-recipes",
@@ -63,6 +65,14 @@ export const App = () => {
     >
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
+        <ExportLocalStorage
+          foundAltRecipes={foundAltRecipes}
+          savedFactories={savedFactories}
+        />
+        <ImportLocalStorage
+          setFoundAltRecipes={setFoundAltRecipes}
+          setSavedFactories={setSavedFactories}
+        />
         <FactoryPlanner
           clickedFactoryId={clickedFactoryId}
           savedFactories={savedFactories}

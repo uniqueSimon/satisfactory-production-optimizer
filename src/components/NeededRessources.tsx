@@ -26,6 +26,7 @@ export const NeededResources = (props: { machines: Map<string, number> }) => {
       <div style={{ display: "flex", alignItems: "center" }}>
         {[...props.machines.entries()].map(([machineType, count]) => (
           <div
+            key={machineType}
             style={{
               display: "flex",
               alignItems: "center",
