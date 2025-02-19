@@ -13,6 +13,7 @@ import allRecipesJson from "./gameData/allRecipes.json";
 import displayNamesJson from "./gameData/displayNames.json";
 import { ExportLocalStorage } from "./components/ExportLocalStorage";
 import { ImportLocalStorage } from "./components/ImportLocalStorage";
+import { IconWithTooltip } from "./reusableComp/IconWithTooltip";
 
 export const allProducts = allProductsJson;
 export const allRecipes = allRecipesJson;
@@ -55,16 +56,10 @@ export const App = () => {
     (x) => !x.isAlternate || foundAltRecipes.includes(x.recipeName)
   );
   return (
-    <div
-      style={{
-        border: "solid",
-        padding: 10,
-        borderRadius: 8,
-        backgroundColor: "white",
-      }}
-    >
+    <div className="border-solid p-10 rounded-md bg-white">
       <Typography.Title>Satisfactory Production Optimizer</Typography.Title>
       <Form>
+        <IconWithTooltip item={"OreIron"}/>
         <ExportLocalStorage
           foundAltRecipes={foundAltRecipes}
           savedFactories={savedFactories}
